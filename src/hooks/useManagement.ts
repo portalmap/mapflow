@@ -5,6 +5,7 @@ import {
   addManagementMember,
   getManagementAccess,
   listManagementMembers,
+  listLiveMeetings,
   listMeetingAttendance,
   refreshMeetingAttendance,
   removeManagementMember,
@@ -73,5 +74,16 @@ export function useRefreshMeetingAttendance() {
       qc.invalidateQueries({ queryKey: ['management', 'attendance'] });
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useLiveMeetings(enabled: boolean) {
+  const fn = useServerFn(listLiveMeetings);
+  return useQuery({
+    queryKey: ['management', 'live-meetings'],
+    queryFn: () => fn({ data: {} }),
+    enabled,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
