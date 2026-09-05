@@ -2,6 +2,7 @@ import { BarChart3, ShieldAlert } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LiveMeetingsPanel } from '@/components/gestao/LiveMeetingsPanel';
 import { MeetingAttendanceReport } from '@/components/gestao/MeetingAttendanceReport';
 import { ManagementAccessSettings } from '@/components/gestao/ManagementAccessSettings';
 import { useManagementAccess } from '@/hooks/useManagement';
@@ -49,11 +50,15 @@ export default function Gestao() {
         </div>
       </div>
 
-      <Tabs defaultValue="reunioes">
+      <Tabs defaultValue="aovivo">
         <TabsList>
+          <TabsTrigger value="aovivo">Ao vivo</TabsTrigger>
           <TabsTrigger value="reunioes">Presença em reuniões</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
         </TabsList>
+        <TabsContent value="aovivo" className="mt-4">
+          <LiveMeetingsPanel />
+        </TabsContent>
         <TabsContent value="reunioes" className="mt-4">
           <MeetingAttendanceReport />
         </TabsContent>

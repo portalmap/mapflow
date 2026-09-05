@@ -81,7 +81,7 @@ export function useLiveMeetings(enabled: boolean) {
   const fn = useServerFn(listLiveMeetings);
   return useQuery({
     queryKey: ['management', 'live-meetings'],
-    queryFn: () => fn({ data: {} }),
+    queryFn: () => fn(),
     enabled,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
