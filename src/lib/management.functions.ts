@@ -231,3 +231,135 @@ export const probeMeetingAttendanceApi = createServerFn({ method: 'POST' })
     const { probeMeetApi } = await import('@/lib/meetingAttendance.server');
     return probeMeetApi(context.userId);
   });
+
+export interface LiveParticipant {
+  key: string;
+  name: string;
+  type: string;
+  firstJoin: string | null;
+  lastLeave: string | null;
+  totalSeconds: number;
+  online: boolean;
+  sessions: { join: string | null; leave: string | null }[];
+}
+
+export interface LiveMeeting {
+  id: string;
+  title: string;
+  meetCode: string | null;
+  startTime: string | null;
+  fromAgenda: boolean;
+  online: LiveParticipant[];
+  left: LiveParticipant[];
+  invitedNotJoined: string[];
+}
+
+/** Reuniões do Meet acontecendo agora + quem está online. */
+export const listLiveMeetings = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ meetings: LiveMeeting[]; refreshedAt: string; notice: string | null }> => {
+    await assertAccess(context);
+    const { collectLiveMeetAttendance } = await import('@/lib/meetingAttendance.server');
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+
+    // Coleta com todas as contas do Google conectadas (cada conta vê as suas reuniões).
+    const { data: accounts } = await supabaseAdmin
+      .from('calendar_google_accounts')
+      .select('user_id')
+      .eq('status', 'online');
+    const userIds = new Set<string>([context.userId, ...((accounts ?? []) as any[]).map((a) => a.user_id)]);
+
+    let notice: string | null = null;
+    for (const uid of userIds) {
+      try {
+        const res = await collectLiveMeetAttendance(uid, 12);
+        if (uid === context.userId && res.message.startsWith('Não foi possível')) notice = res.message;
+      } catch {
+        /* uma conta com problema não deve derrubar o relatório */
+      }
+    }
+
+    const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+    const { data: conferences } = await supabaseAdmin
+      .from('meeting_attendance_conferences')
+      .select('id, event_id, title, meet_code, start_time')
+      .is('end_time', null)
+      .gte('start_time', since)
+      .order('start_time', { ascending: false });
+
+    const list = (conferences ?? []) as any[];
+    if (!list.length) return { meetings: [], refreshedAt: new Date().toISOString(), notice };
+
+    const { data: sessions } = await supabaseAdmin
+      .from('meeting_attendance_sessions')
+      .select('conference_id, participant_key, display_name, participant_type, join_time, leave_time, duration_seconds')
+      .in(
+        'conference_id',
+        list.map((c) => c.id),
+      );
+
+    const eventIds = list.map((c) => c.event_id).filter(Boolean);
+    const invitedByEvent = new Map<string, string[]>();
+    if (eventIds.length) {
+      const { data: guests } = await supabaseAdmin
+        .from('calendar_event_guests')
+        .select('event_id, display_name, email')
+        .in('event_id', eventIds);
+      for (const g of (guests ?? []) as any[]) {
+        const label = g.display_name || g.email;
+        if (!label) continue;
+        const current = invitedByEvent.get(g.event_id) ?? [];
+        current.push(label);
+        invitedByEvent.set(g.event_id, current);
+      }
+    }
+
+    const meetings: LiveMeeting[] = list.map((conf) => {
+      const own = ((sessions ?? []) as any[]).filter((s) => s.conference_id === conf.id);
+      const grouped = new Map<string, LiveParticipant>();
+      for (const s of own) {
+        const p =
+          grouped.get(s.participant_key) ??
+          ({
+            key: s.participant_key,
+            name: s.display_name ?? 'Participante',
+            type: s.participant_type ?? 'signed_in',
+            firstJoin: null,
+            lastLeave: null,
+            totalSeconds: 0,
+            online: false,
+            sessions: [],
+          } as LiveParticipant);
+        p.sessions.push({ join: s.join_time, leave: s.leave_time });
+        if (!s.leave_time) {
+          p.online = true;
+          if (s.join_time) p.totalSeconds += Math.max(0, Math.round((Date.now() - new Date(s.join_time).getTime()) / 1000));
+        } else {
+          p.totalSeconds += s.duration_seconds ?? 0;
+        }
+        if (s.join_time && (!p.firstJoin || s.join_time < p.firstJoin)) p.firstJoin = s.join_time;
+        if (s.leave_time && (!p.lastLeave || s.leave_time > p.lastLeave)) p.lastLeave = s.leave_time;
+        grouped.set(s.participant_key, p);
+      }
+
+      const all = [...grouped.values()].map((p) => ({
+        ...p,
+        sessions: p.sessions.sort((a, b) => String(a.join).localeCompare(String(b.join))),
+      }));
+      const present = new Set(all.map((p) => p.name.trim().toLowerCase()));
+      const invited = conf.event_id ? (invitedByEvent.get(conf.event_id) ?? []) : [];
+
+      return {
+        id: conf.id,
+        title: conf.title ?? 'Reunião instantânea do Meet',
+        meetCode: conf.meet_code,
+        startTime: conf.start_time,
+        fromAgenda: !!conf.event_id,
+        online: all.filter((p) => p.online).sort((a, b) => b.totalSeconds - a.totalSeconds),
+        left: all.filter((p) => !p.online).sort((a, b) => b.totalSeconds - a.totalSeconds),
+        invitedNotJoined: invited.filter((l) => !present.has(l.trim().toLowerCase())),
+      };
+    });
+
+    return { meetings, refreshedAt: new Date().toISOString(), notice };
+  });
