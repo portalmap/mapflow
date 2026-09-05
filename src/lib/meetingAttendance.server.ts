@@ -233,3 +233,136 @@ export async function collectMeetAttendance(
         : `${conferences} reunião(ões) atualizada(s).`,
   };
 }
+
+/**
+ * Coleta as reuniões AINDA EM ANDAMENTO (sem hora de término) das últimas
+ * `lookbackHours` horas para o usuário informado. Inclui reuniões instantâneas.
+ * Sessões sem `leave_time` significam "pessoa online agora".
+ */
+export async function collectLiveMeetAttendance(
+  userId: string,
+  lookbackHours = 12,
+): Promise<{ live: number; message: string }> {
+  const key = await getConnectionKeyForUser(userId, GOOGLE_CONNECTOR_ID);
+  if (!key) return { live: 0, message: 'Conta do Google não conectada.' };
+
+  const { supabaseAdmin: admin } = await import('@/integrations/supabase/client.server');
+
+  const since = new Date(Date.now() - Math.max(1, lookbackHours) * 3600 * 1000);
+  const filter = encodeURIComponent(`start_time>="${since.toISOString()}"`);
+
+  const listRes = await meetApi(key, `/conferenceRecords?pageSize=50&filter=${filter}`);
+  if (!listRes.ok) {
+    const detail =
+      typeof listRes.body === 'string'
+        ? listRes.body.slice(0, 200)
+        : (listRes.body?.error?.message ?? `HTTP ${listRes.status}`);
+    return { live: 0, message: `Não foi possível ler as reuniões ao vivo: ${detail}` };
+  }
+
+  const records = ((listRes.body?.conferenceRecords ?? []) as any[]).filter((r) => !r.endTime);
+  let live = 0;
+
+  for (const record of records) {
+    const recordName: string = record.name;
+    if (!recordName) continue;
+
+    let meetCode: string | null = null;
+    if (record.space) {
+      const spaceRes = await meetApi(key, `/${record.space}`);
+      meetCode = spaceRes.ok ? (spaceRes.body?.meetingCode ?? null) : null;
+    }
+
+    let eventId: string | null = null;
+    let title: string | null = null;
+    if (meetCode) {
+      const { data: event } = await admin
+        .from('calendar_events')
+        .select('id, title')
+        .eq('meet_code', meetCode)
+        .order('starts_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      eventId = event?.id ?? null;
+      title = event?.title ?? null;
+    }
+
+    const { data: conf } = await admin
+      .from('meeting_attendance_conferences')
+      .upsert(
+        {
+          google_conference_record: recordName,
+          event_id: eventId,
+          organizer_user_id: userId,
+          meet_code: meetCode,
+          title,
+          start_time: record.startTime ?? null,
+          end_time: null,
+          collected_at: new Date().toISOString(),
+        },
+        { onConflict: 'google_conference_record' },
+      )
+      .select('id')
+      .maybeSingle();
+    if (!conf) continue;
+    live += 1;
+
+    const partRes = await meetApi(key, `/${recordName}/participants?pageSize=100`);
+    if (!partRes.ok) continue;
+
+    for (const participant of (partRes.body?.participants ?? []) as any[]) {
+      const partName: string = participant.name;
+      if (!partName) continue;
+      const displayName =
+        participant.signedinUser?.displayName ??
+        participant.anonymousUser?.displayName ??
+        participant.phoneUser?.displayName ??
+        'Participante';
+      const participantType = participant.signedinUser
+        ? 'signed_in'
+        : participant.phoneUser
+          ? 'phone'
+          : 'anonymous';
+      const participantKey: string = participant.signedinUser?.user ?? partName;
+
+      const sesRes = await meetApi(key, `/${partName}/participantSessions?pageSize=100`);
+      const rows: any[] = [];
+      if (sesRes.ok) {
+        for (const session of (sesRes.body?.participantSessions ?? []) as any[]) {
+          if (!session.name) continue;
+          rows.push({
+            conference_id: conf.id,
+            google_session_id: session.name,
+            participant_key: participantKey,
+            display_name: displayName,
+            participant_type: participantType,
+            join_time: session.startTime ?? null,
+            leave_time: session.endTime ?? null,
+            duration_seconds: seconds(session.startTime, session.endTime),
+          });
+        }
+      }
+      if (!rows.length) {
+        rows.push({
+          conference_id: conf.id,
+          google_session_id: partName,
+          participant_key: participantKey,
+          display_name: displayName,
+          participant_type: participantType,
+          join_time: participant.earliestStartTime ?? null,
+          leave_time: participant.latestEndTime ?? null,
+          duration_seconds: seconds(participant.earliestStartTime, participant.latestEndTime),
+        });
+      }
+
+      await admin
+        .from('meeting_attendance_sessions')
+        .upsert(rows, { onConflict: 'google_session_id' });
+    }
+  }
+
+  return {
+    live,
+    message: live ? `${live} reunião(ões) em andamento.` : 'Nenhuma reunião em andamento agora.',
+  };
+}
