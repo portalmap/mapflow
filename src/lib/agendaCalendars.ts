@@ -11,7 +11,7 @@ export interface AgendaCalendar {
   isSelf: boolean;
 }
 
-/** Paleta fixa; a cor de cada agenda é escolhida de forma determinística pelo id. */
+/** Paleta base; cores são atribuídas em sequência para nunca repetir enquanto houver opções. */
 const PALETTE = [
   '#3B82F6',
   '#EF4444',
@@ -27,15 +27,48 @@ const PALETTE = [
   '#D946EF',
 ];
 
-function hash(value: string) {
-  let h = 0;
-  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
-  return h;
+export const LOCAL_CALENDAR_COLOR = '#64748B';
+
+function hexToHsl(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return [0, 0, l * 100];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h: number;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h = Math.round(h * 60);
+  if (h < 0) h += 360;
+  return [h, s * 100, l * 100];
 }
 
-export function calendarColor(id: string) {
-  if (id === LOCAL_CALENDAR_ID) return '#64748B';
-  return PALETTE[hash(id) % PALETTE.length]!;
+/** Gera a cor de um índice: paleta pura no 1º ciclo, tons alternativos nos ciclos seguintes. */
+export function colorForIndex(index: number) {
+  const base = PALETTE[index % PALETTE.length]!;
+  const cycle = Math.floor(index / PALETTE.length);
+  if (cycle === 0) return base;
+  const [h, s, l] = hexToHsl(base);
+  // alterna entre tons mais escuros e mais claros a cada ciclo
+  const direction = cycle % 2 === 1 ? -1 : 1;
+  const step = Math.ceil(cycle / 2) * 14;
+  const lightness = Math.min(82, Math.max(24, l + direction * step));
+  return `hsl(${h} ${Math.round(s)}% ${Math.round(lightness)}%)`;
+}
+
+/** Mapa determinístico id -> cor, sem repetição dentro do mesmo conjunto de agendas. */
+export function buildColorMap(ids: string[]): Record<string, string> {
+  const unique = [...new Set(ids)].filter((id) => id !== LOCAL_CALENDAR_ID).sort();
+  const map: Record<string, string> = { [LOCAL_CALENDAR_ID]: LOCAL_CALENDAR_COLOR };
+  unique.forEach((id, i) => {
+    map[id] = colorForIndex(i);
+  });
+  return map;
 }
 
 /** Normaliza o id da agenda de um compromisso ('primary' vira o e-mail da conta conectada). */
@@ -59,11 +92,12 @@ export function buildCalendarList(
   }
 
   const self = (selfEmail ?? '').toLowerCase();
+  const colors = buildColorMap([...counts.keys()]);
   const list = [...counts.entries()].map(([id, count]) => ({
     id,
     count,
     isSelf: id === self,
-    color: calendarColor(id),
+    color: colors[id] ?? LOCAL_CALENDAR_COLOR,
     label:
       id === LOCAL_CALENDAR_ID
         ? 'Criados aqui'
