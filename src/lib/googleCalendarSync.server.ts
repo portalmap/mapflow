@@ -29,18 +29,38 @@ interface GoogleEvent {
   htmlLink?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
-  attendees?: { email?: string; displayName?: string; responseStatus?: string; self?: boolean }[];
-  creator?: { email?: string; self?: boolean };
-  organizer?: { email?: string; self?: boolean };
+  attendees?: {
+    email?: string;
+    displayName?: string;
+    responseStatus?: string;
+    self?: boolean;
+    organizer?: boolean;
+    optional?: boolean;
+  }[];
+  creator?: { email?: string; self?: boolean; displayName?: string };
+  organizer?: { email?: string; self?: boolean; displayName?: string };
   outOfOfficeProperties?: { autoDeclineMode?: string };
   hangoutLink?: string;
   conferenceData?: {
     conferenceId?: string;
-    entryPoints?: { entryPointType?: string; uri?: string }[];
+    entryPoints?: {
+      entryPointType?: string;
+      uri?: string;
+      label?: string;
+      pin?: string;
+      regionCode?: string;
+    }[];
   };
   reminders?: { useDefault?: boolean; overrides?: { method: string; minutes: number }[] };
-
+  recurrence?: string[];
+  recurringEventId?: string;
+  transparency?: string;
+  visibility?: string;
+  guestsCanModify?: boolean;
+  guestsCanInviteOthers?: boolean;
+  guestsCanSeeOtherGuests?: boolean;
 }
+
 
 interface GoogleTask {
   id: string;
