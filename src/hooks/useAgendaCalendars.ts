@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { CalendarEvent } from '@/hooks/useAgenda';
 import {
   buildCalendarList,
-  calendarColor,
+  buildColorMap,
   calendarIdOf,
   storageKeyFor,
   type AgendaCalendar,
@@ -104,9 +104,10 @@ export function useAgendaCalendars(events: CalendarEvent[]): AgendaCalendarsStat
 
   const visibleEvents = useMemo(() => {
     const hiddenSet = new Set(hidden);
+    const colors = buildColorMap(events.map((e) => calendarIdOf(e, selfEmail)));
     return events
       .filter((e) => !hiddenSet.has(calendarIdOf(e, selfEmail)))
-      .map((e) => ({ ...e, color: calendarColor(calendarIdOf(e, selfEmail)) }));
+      .map((e) => ({ ...e, color: colors[calendarIdOf(e, selfEmail)] }));
   }, [events, hidden, selfEmail]);
 
   return { calendars, hidden, toggle, showAll, showOnlyMine, visibleEvents };
