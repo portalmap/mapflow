@@ -42,6 +42,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   event: CalendarEvent | null;
   onEdit: (event: CalendarEvent) => void;
+  onDuplicate?: (event: CalendarEvent) => void;
 }
 
 function periodLabel(event: CalendarEvent) {
