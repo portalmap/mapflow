@@ -189,9 +189,9 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
   const gridCols = { gridTemplateColumns: `56px repeat(${cols}, minmax(120px, 1fr))` };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <div className="overflow-x-auto">
-        <div className={cols > 1 ? 'min-w-[860px]' : 'min-w-full'}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border">
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-auto">
+        <div className={`flex min-h-0 flex-1 flex-col ${cols > 1 ? 'min-w-[860px]' : 'min-w-full'}`}>
           {/* Cabeçalho dos dias */}
           <div className="grid border-b border-border bg-card" style={gridCols}>
             <div className="border-r border-border px-2 py-2 text-[11px] text-muted-foreground">
