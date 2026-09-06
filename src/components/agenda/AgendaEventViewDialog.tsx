@@ -5,6 +5,7 @@ import {
   Bell,
   CalendarClock,
   Copy,
+  CopyPlus,
   ExternalLink,
   MapPin,
   Pencil,
