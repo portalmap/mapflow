@@ -107,8 +107,9 @@ function layoutDay(dayEvents: CalendarEvent[], day: Date): DayLayout {
         const endMin = (item.end - dayStart) / 60_000;
         positioned.push({
           event: item.event,
+          // Altura fiel ao tempo: 15 min = 1/4 da altura de uma hora.
+          height: (endMin - startMin) * MINUTE,
           top: startMin * MINUTE,
-          height: Math.max((endMin - startMin) * MINUTE, 22),
           left,
           width,
           zIndex: 10 + index,
@@ -189,11 +190,11 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
   const gridCols = { gridTemplateColumns: `56px repeat(${cols}, minmax(120px, 1fr))` };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <div className="overflow-x-auto">
-        <div className={cols > 1 ? 'min-w-[860px]' : 'min-w-full'}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border">
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-auto">
+        <div className={`flex min-h-0 flex-1 flex-col ${cols > 1 ? 'min-w-[860px]' : 'min-w-full'}`}>
           {/* Cabeçalho dos dias */}
-          <div className="grid border-b border-border bg-card" style={gridCols}>
+          <div className="grid shrink-0 border-b border-border bg-card" style={gridCols}>
             <div className="border-r border-border px-2 py-2 text-[11px] text-muted-foreground">
               {format(now, 'OOOO', { locale: ptBR }).replace('GMT', 'GMT')}
             </div>
@@ -218,7 +219,7 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
 
           {/* Faixa de dia inteiro */}
           {hasAllDay && (
-            <div className="grid border-b border-border bg-muted/30" style={gridCols}>
+            <div className="grid shrink-0 border-b border-border bg-muted/30" style={gridCols}>
               <div className="border-r border-border px-2 py-1.5 text-[11px] text-muted-foreground">Dia inteiro</div>
               {perDay.map(({ day, allDay }) => (
                 <div key={day.toISOString()} className="space-y-1 border-r border-border p-1 last:border-r-0">
@@ -239,7 +240,7 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
           )}
 
           {/* Grade de horários */}
-          <div ref={scrollRef} className="max-h-[calc(100vh-19rem)] min-h-[420px] overflow-y-auto">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
             <div className="grid" style={gridCols}>
               {/* Coluna de horas */}
               <div className="border-r border-border">
@@ -277,7 +278,7 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
                         key={event.id}
                         type="button"
                         onClick={() => onSelectEvent(event)}
-                        className="absolute flex flex-col items-stretch justify-start overflow-hidden rounded border border-card/60 px-1 py-0.5 text-left text-[11px] leading-tight text-primary-foreground shadow-sm transition-shadow hover:z-30 hover:shadow-md focus-visible:z-30"
+                        className="absolute flex flex-col items-stretch justify-center overflow-hidden rounded border border-card/60 px-1 text-left text-[11px] leading-tight text-primary-foreground shadow-sm transition-shadow hover:z-30 hover:shadow-md focus-visible:z-30"
                         style={{
                           top,
                           height,
