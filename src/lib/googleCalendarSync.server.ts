@@ -145,7 +145,9 @@ const LOCAL_TO_EVENT_TYPE: Record<ItemType, string> = {
   focus_time: 'focusTime',
 };
 
-function toGooglePayload(event: any, attendees: { email: string; displayName?: string }[]) {
+type GoogleAttendeeInput = { email: string; displayName?: string; optional?: boolean };
+
+function toGooglePayload(event: any, attendees: GoogleAttendeeInput[]) {
   const itemType: ItemType = (event.item_type ?? 'event') as ItemType;
   const payload: Record<string, unknown> = {
     summary: event.title,
@@ -165,6 +167,13 @@ function toGooglePayload(event: any, attendees: { email: string; displayName?: s
   }
   // Ausência e hora de se concentrar não aceitam convidados no Google.
   if (itemType === 'event' && attendees.length) payload['attendees'] = attendees;
+  if (itemType === 'event') {
+    payload['guestsCanModify'] = !!event.guests_can_modify;
+    payload['guestsCanInviteOthers'] = event.guests_can_invite_others !== false;
+    payload['guestsCanSeeOtherGuests'] = event.guests_can_see_others !== false;
+    payload['transparency'] = event.transparency === 'transparent' ? 'transparent' : 'opaque';
+    payload['visibility'] = event.visibility || 'default';
+  }
   if (itemType === 'out_of_office') {
     payload['eventType'] = 'outOfOffice';
     payload['transparency'] = 'opaque';
@@ -175,11 +184,48 @@ function toGooglePayload(event: any, attendees: { email: string; displayName?: s
     payload['eventType'] = 'focusTime';
     payload['transparency'] = 'opaque';
   }
-  payload['reminders'] = event.reminder_minutes
-    ? { useDefault: false, overrides: [{ method: 'popup', minutes: event.reminder_minutes }] }
+
+  // Repetição: só em evento não vinculado a uma série existente (uma ocorrência
+  // isolada é editada sem alterar a regra da série, como no Google).
+  const rules = Array.isArray(event.recurrence) ? event.recurrence.filter(Boolean) : [];
+  if (!event.recurring_event_id) payload['recurrence'] = rules.length ? rules : undefined;
+
+  // Notificações: lista completa quando houver; senão o lembrete único legado.
+  const overrides = normalizeReminders(event);
+  payload['reminders'] = overrides.length
+    ? { useDefault: false, overrides }
     : { useDefault: true };
+
+  // Videoconferência (Google Meet).
+  if (event.conference_requested && !event.hangout_link) {
+    payload['conferenceData'] = {
+      createRequest: {
+        requestId: `mapflow-${event.id}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    };
+  } else if (!event.conference_requested && event.hangout_link) {
+    payload['conferenceData'] = null;
+  }
   return payload;
 }
+
+/** Lista de notificações do compromisso, no formato do Google. */
+function normalizeReminders(event: any): { method: string; minutes: number }[] {
+  const raw = Array.isArray(event.reminders) ? event.reminders : null;
+  if (raw?.length) {
+    return raw
+      .map((r: any) => ({
+        method: r?.method === 'email' ? 'email' : 'popup',
+        minutes: Number(r?.minutes),
+      }))
+      .filter((r: any) => Number.isFinite(r.minutes) && r.minutes >= 0)
+      .slice(0, 5);
+  }
+  if (event.reminder_minutes) return [{ method: 'popup', minutes: Number(event.reminder_minutes) }];
+  return [];
+}
+
 
 /** Link do Google Meet do evento, quando existir. */
 function hangoutLinkOf(ev: GoogleEvent): string | null {
