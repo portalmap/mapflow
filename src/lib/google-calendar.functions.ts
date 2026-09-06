@@ -206,33 +206,22 @@ export const disconnectGoogleCalendarAccount = createServerFn({ method: 'POST' }
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     await supabaseAdmin.from('calendar_google_accounts').delete().eq('user_id', data.userId);
 
-    // Limpeza local: compromissos vindos do Google a partir de agora somem;
-    // os que já aconteceram ficam como histórico local (sem vínculo com o Google).
-    const cutoff = new Date().toISOString();
-
-    const { data: removed } = await supabaseAdmin
+    // A Agenda é um espelho do Google: sem conexão, nada do Google fica salvo aqui.
+    const { data: googleEvents } = await supabaseAdmin
       .from('calendar_events')
-      .delete()
+      .select('id')
       .eq('user_id', data.userId)
-      .eq('source', 'google')
-      .gte('starts_at', cutoff)
-      .select('id');
+      .eq('source', 'google');
 
-    const { data: kept } = await supabaseAdmin
-      .from('calendar_events')
-      .update({
-        source: 'local',
-        google_event_id: null,
-        google_calendar_id: null,
-        google_etag: null,
-        google_html_link: null,
-        last_synced_at: null,
-      })
-      .eq('user_id', data.userId)
-      .eq('source', 'google')
-      .select('id');
+    const ids = (googleEvents ?? []).map((e) => e.id);
+    if (ids.length) {
+      await supabaseAdmin.from('calendar_event_guests').delete().in('event_id', ids);
+      await supabaseAdmin.from('calendar_event_reminders').delete().in('event_id', ids);
+      await supabaseAdmin.from('calendar_events').delete().in('id', ids);
+    }
 
-    return { ok: true, removed: removed?.length ?? 0, kept: kept?.length ?? 0 };
+    return { ok: true, removed: ids.length, kept: 0 };
+
   });
 
 /** Envia ao Google a resposta (Sim/Não/Talvez) do usuário para um compromisso. */
