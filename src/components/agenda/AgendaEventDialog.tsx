@@ -145,27 +145,28 @@ export function AgendaEventDialog({
 
   useEffect(() => {
     if (!open) return;
-    if (event) {
-      const s = new Date(event.starts_at);
-      const e = new Date(event.ends_at);
-      setItemType(event.item_type ?? 'event');
-      setTitle(event.title);
-      setDescription(event.description ?? '');
-      setLocation(event.location ?? '');
-      setAllDay(event.all_day);
-      setStart(event.all_day ? toDateInput(s) : toLocalInput(s));
-      setEnd(event.all_day ? toDateInput(e) : toLocalInput(e));
-      setColor(event.color);
-      setReminder(event.reminder_minutes ? String(event.reminder_minutes) : 'none');
-      setCompleted(!!event.completed_at);
-      setAutoDecline(!!event.auto_decline);
-      setRecurrence(detectRecurrence(event.recurrence));
-      setWithMeet(!!event.hangout_link || !!event.conference_requested);
-      setBusy(event.transparency !== 'transparent');
-      setVisibility(event.visibility || 'default');
-      setCanModify(!!event.guests_can_modify);
-      setCanInvite(event.guests_can_invite_others !== false);
-      setCanSeeOthers(event.guests_can_see_others !== false);
+    if (source) {
+      const isCopy = !event;
+      const s = new Date(source.starts_at);
+      const e = new Date(source.ends_at);
+      setItemType(source.item_type ?? 'event');
+      setTitle(isCopy ? `Cópia de ${source.title}` : source.title);
+      setDescription(source.description ?? '');
+      setLocation(source.location ?? '');
+      setAllDay(source.all_day);
+      setStart(source.all_day ? toDateInput(s) : toLocalInput(s));
+      setEnd(source.all_day ? toDateInput(e) : toLocalInput(e));
+      setColor(source.color);
+      setReminder(source.reminder_minutes ? String(source.reminder_minutes) : 'none');
+      setCompleted(isCopy ? false : !!source.completed_at);
+      setAutoDecline(!!source.auto_decline);
+      setRecurrence(detectRecurrence(source.recurrence));
+      setWithMeet(!!source.hangout_link || !!source.conference_requested);
+      setBusy(source.transparency !== 'transparent');
+      setVisibility(source.visibility || 'default');
+      setCanModify(!!source.guests_can_modify);
+      setCanInvite(source.guests_can_invite_others !== false);
+      setCanSeeOthers(source.guests_can_see_others !== false);
     } else {
       const base = defaultDate ? new Date(defaultDate) : new Date();
       if (!defaultDate) base.setMinutes(0, 0, 0);
