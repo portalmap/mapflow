@@ -519,7 +519,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         const attendees = await guestEmails(admin, event.id);
         const res = await google(
           connectionAPIKey,
-          `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
+          `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all&conferenceDataVersion=1`,
           { method: 'POST', body: JSON.stringify(toGooglePayload(event, attendees)) },
         );
         if (res.ok && res.body?.id) {
@@ -548,7 +548,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         const attendees = await guestEmails(admin, event.id);
         const res = await google(
           connectionAPIKey,
-          `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.google_event_id)}?sendUpdates=all`,
+          `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.google_event_id)}?sendUpdates=all&conferenceDataVersion=1`,
           { method: 'PATCH', body: JSON.stringify(toGooglePayload(event, attendees)) },
         );
         if (res.ok) {
@@ -627,6 +627,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     };
   }
 
+
+  /** RRULE por evento mestre, para não buscar a mesma série duas vezes. */
+  const recurrenceCache = new Map<string, string[] | null>();
 
   /** Aplica uma página de eventos do Google em lote (poucas idas ao banco por página). */
   const applyPage = async (calId: string, items: GoogleEvent[]) => {
@@ -718,7 +721,17 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     // Espelha a lista completa de convidados do Google (nome, organizador,
     // opcional e resposta), para que a Agenda mostre exatamente o que o Google mostra.
     const eventIds: string[] = [];
-    const desired = new Map<string, Record<string, unknown>>(); // `${localId}|${email}` -> linha
+    type GuestRow = {
+      event_id: string;
+      email: string;
+      display_name: string | null;
+      response_status: string;
+      is_organizer: boolean;
+      optional: boolean;
+      is_self: boolean;
+      invite_status: string;
+    };
+    const desired = new Map<string, GuestRow>(); // `${localId}|${email}` -> linha
     for (const ev of live) {
       const localId = localIdByGoogleId.get(ev.id);
       if (!localId) continue;
@@ -757,11 +770,11 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         }
         seen.add(key);
         const changed =
-          g.response_status !== want['response_status'] ||
-          (g.display_name ?? null) !== (want['display_name'] ?? null) ||
-          g.is_organizer !== want['is_organizer'] ||
-          g.optional !== want['optional'] ||
-          g.is_self !== want['is_self'];
+          g.response_status !== want.response_status ||
+          (g.display_name ?? null) !== want.display_name ||
+          g.is_organizer !== want.is_organizer ||
+          g.optional !== want.optional ||
+          g.is_self !== want.is_self;
         if (changed) {
           await admin.from('calendar_event_guests').update(want).eq('id', g.id);
         }
