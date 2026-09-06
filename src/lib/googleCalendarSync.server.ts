@@ -656,13 +656,16 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
 
     const { data: existingRows } = await admin
       .from('calendar_events')
-      .select('id, google_event_id, google_etag')
+      .select('id, google_event_id, google_etag, organizer_email')
       .eq('user_id', userId)
       .in(
         'google_event_id',
         live.map((ev) => ev.id),
       );
-    const existingByGoogleId = new Map<string, { id: string; google_etag: string | null }>();
+    const existingByGoogleId = new Map<
+      string,
+      { id: string; google_etag: string | null; organizer_email: string | null }
+    >();
     for (const r of existingRows ?? []) {
       if (r.google_event_id) existingByGoogleId.set(r.google_event_id, r);
     }
