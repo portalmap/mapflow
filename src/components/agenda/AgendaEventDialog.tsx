@@ -193,10 +193,10 @@ export function AgendaEventDialog({
       setCanSeeOthers(true);
     }
     setEmailDraft('');
-  }, [open, event, defaultDate, defaultType]);
+  }, [open, event, source, defaultDate, defaultType]);
 
   useEffect(() => {
-    if (!open || !event) return;
+    if (!open || !source) return;
     setGuests(
       (existingGuests ?? []).map((g) => ({
         user_id: g.user_id,
@@ -205,7 +205,7 @@ export function AgendaEventDialog({
         optional: !!g.optional,
       })),
     );
-  }, [open, event, existingGuests]);
+  }, [open, source, existingGuests]);
 
   const profileOptions = useMemo(
     () => (profiles ?? []).filter((p) => p.id !== user?.id && !guests.some((g) => g.user_id === p.id)),
