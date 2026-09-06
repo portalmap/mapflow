@@ -246,7 +246,21 @@ function meetCodeOf(ev: GoogleEvent): string | null {
 }
 
 
-function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
+/** Telefone e PIN de acesso à videoconferência, quando o Google enviar. */
+function phoneEntryOf(ev: GoogleEvent): { phone: string | null; pin: string | null } {
+  const entry = (ev.conferenceData?.entryPoints ?? []).find(
+    (e) => e.entryPointType === 'phone' && e.uri,
+  );
+  if (!entry) return { phone: null, pin: null };
+  return { phone: (entry.label || entry.uri || '').replace('tel:', '') || null, pin: entry.pin ?? null };
+}
+
+function fromGoogleEvent(
+  ev: GoogleEvent,
+  userId: string,
+  calendarId: string,
+  recurrence?: string[] | null,
+) {
   const allDay = !!ev.start?.date;
   const startsAt = allDay
     ? new Date(`${ev.start!.date}T00:00:00`)
@@ -256,6 +270,9 @@ function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
     : new Date(ev.end?.dateTime ?? startsAt.getTime() + 3600_000);
   const reminder = ev.reminders?.overrides?.[0]?.minutes ?? null;
   const self = (ev.attendees ?? []).find((a) => a.self);
+  const organizer = ev.organizer ?? ev.creator;
+  const { phone, pin } = phoneEntryOf(ev);
+  const hangout = hangoutLinkOf(ev);
 
   return {
     user_id: userId,
@@ -266,6 +283,7 @@ function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
     ends_at: endsAt.toISOString(),
     all_day: allDay,
     reminder_minutes: reminder,
+    reminders: ev.reminders?.overrides?.length ? ev.reminders.overrides : null,
     item_type: EVENT_TYPE_TO_LOCAL[ev.eventType ?? 'default'] ?? 'event',
     auto_decline:
       ev.outOfOfficeProperties?.autoDeclineMode === 'declineAllConflictingInvitations' ||
@@ -275,14 +293,28 @@ function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
     google_calendar_id: calendarId,
     google_etag: ev.etag ?? null,
     google_html_link: ev.htmlLink ?? null,
-    hangout_link: hangoutLinkOf(ev),
+    hangout_link: hangout,
     meet_code: meetCodeOf(ev),
-
+    conference_requested: !!hangout,
+    conference_phone: phone,
+    conference_pin: pin,
+    organizer_email: organizer?.email ?? null,
+    organizer_name: organizer?.displayName ?? null,
+    guests_can_modify: !!ev.guestsCanModify,
+    guests_can_invite_others: ev.guestsCanInviteOthers !== false,
+    guests_can_see_others: ev.guestsCanSeeOtherGuests !== false,
+    transparency: ev.transparency === 'transparent' ? 'transparent' : 'opaque',
+    visibility: ev.visibility || 'default',
+    recurrence: recurrence ?? ev.recurrence ?? null,
+    recurring_event_id: ev.recurringEventId ?? null,
+    // Só o organizador (ou convidado com permissão) edita o evento no Google.
+    can_edit: !!organizer?.self || !!ev.guestsCanModify,
     source: 'google',
     last_synced_at: new Date().toISOString(),
     deleted_at: null,
   };
 }
+
 
 function taskDue(task: GoogleTask): { starts: Date; ends: Date } | null {
   if (!task.due) return null;
