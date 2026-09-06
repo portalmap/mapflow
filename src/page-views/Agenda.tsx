@@ -186,38 +186,8 @@ export default function Agenda() {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 gap-4">
-          <aside className="hidden w-56 shrink-0 overflow-y-auto rounded-lg border border-border p-3 lg:block">
-            <AgendaCalendarFilter
-              calendars={calendars}
-              hidden={hidden}
-              onToggle={toggle}
-              onShowAll={showAll}
-              onShowOnlyMine={showOnlyMine}
-            />
-          </aside>
-
           <div className="min-w-0 flex-1">
-            <div className="mb-2 lg:hidden">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8">
-                    <ListFilter className="mr-1.5 h-4 w-4" />
-                    Agendas
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-72 overflow-y-auto">
-                  <div className="pt-6">
-                    <AgendaCalendarFilter
-                      calendars={calendars}
-                      hidden={hidden}
-                      onToggle={toggle}
-                      onShowAll={showAll}
-                      onShowOnlyMine={showOnlyMine}
-                    />
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
+
 
             {view === 'month' ? (
               <AgendaMonthView
