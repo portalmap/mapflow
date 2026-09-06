@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, X, Plus, ExternalLink, Video } from 'lucide-react';
+import { Trash2, X, Plus, Copy, ExternalLink, Video } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
   RECURRENCE_OPTIONS,
