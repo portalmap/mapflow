@@ -107,8 +107,9 @@ function layoutDay(dayEvents: CalendarEvent[], day: Date): DayLayout {
         const endMin = (item.end - dayStart) / 60_000;
         positioned.push({
           event: item.event,
+          // Altura fiel ao tempo: 15 min = 1/4 da altura de uma hora.
+          height: (endMin - startMin) * MINUTE,
           top: startMin * MINUTE,
-          height: Math.max((endMin - startMin) * MINUTE, 22),
           left,
           width,
           zIndex: 10 + index,
