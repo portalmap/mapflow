@@ -502,56 +502,31 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     );
   };
 
-  
-  // Agendas relevantes: a principal e as compartilhadas (dessas, só o que é meu).
-  // Feriados/aniversários ficam de fora.
-  const ignoredCalendar = (id: string) =>
-    id.includes('#holiday@') || id.includes('#contacts@') || id.includes('#weeknum@');
 
-  const selfEmail = (googleEmail ?? '').trim().toLowerCase();
-  const primaryIds = new Set(
-    ['primary', calendarId.toLowerCase(), selfEmail].filter(Boolean) as string[],
-  );
-
-  /** Só entra o que é meu: minha agenda, ou eu como criador/organizador/convidado. */
-  const isMine = (calId: string, ev: GoogleEvent) => {
-    if (primaryIds.has(calId.toLowerCase())) return true;
-    if (ev.creator?.self || ev.organizer?.self) return true;
-    const creator = ev.creator?.email?.trim().toLowerCase();
-    const organizer = ev.organizer?.email?.trim().toLowerCase();
-    if (selfEmail && (creator === selfEmail || organizer === selfEmail)) return true;
-    for (const a of ev.attendees ?? []) {
-      if (a.self) return true;
-      if (selfEmail && a.email?.trim().toLowerCase() === selfEmail) return true;
-    }
-    return false;
-  };
+  // Espelho da agenda principal: só a minha agenda entra (ela já contém os
+  // convites que outras pessoas enviam). Agendas de colegas, feriados e
+  // aniversários não são importados.
+  /** Tudo o que vem da minha agenda entra, independentemente de quem criou. */
+  const isMine = (_calId: string, _ev: GoogleEvent) => true;
 
   let cursor: SyncCursor;
   if (resumeCursor) {
-    cursor = resumeCursor;
+    cursor = { ...resumeCursor, calendarIds: [calendarId], index: 0 };
   } else {
-    const calendarIds: string[] = [calendarId];
-    const listRes = await google(connectionAPIKey, '/users/me/calendarList?maxResults=250');
-    if (listRes.ok) {
-      for (const cal of (listRes.body?.items ?? []) as { id?: string }[]) {
-        if (!cal.id || ignoredCalendar(cal.id) || calendarIds.includes(cal.id)) continue;
-        calendarIds.push(cal.id);
-      }
-    }
     // Janela padrão da listagem completa: 30 dias atrás até 180 dias à frente.
     const from = new Date();
     from.setDate(from.getDate() - 30);
     const to = new Date();
     to.setDate(to.getDate() + 180);
     cursor = {
-      calendarIds,
+      calendarIds: [calendarId],
       index: 0,
       pageToken: null,
       windowFrom: from.toISOString(),
       windowTo: to.toISOString(),
     };
   }
+
 
   /** Aplica uma página de eventos do Google em lote (poucas idas ao banco por página). */
   const applyPage = async (calId: string, items: GoogleEvent[]) => {
