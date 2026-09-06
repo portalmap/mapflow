@@ -530,6 +530,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
               google_calendar_id: calendarId,
               google_etag: res.body.etag ?? null,
               google_html_link: res.body.htmlLink ?? null,
+              hangout_link: hangoutLinkOf(res.body),
+              meet_code: meetCodeOf(res.body),
+              conference_requested: !!hangoutLinkOf(res.body),
               last_synced_at: new Date().toISOString(),
             })
             .eq('id', event.id);
@@ -557,6 +560,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
             .update({
               google_etag: res.body?.etag ?? null,
               google_html_link: res.body?.htmlLink ?? event.google_html_link,
+              hangout_link: res.body ? hangoutLinkOf(res.body) : event.hangout_link,
+              meet_code: res.body ? meetCodeOf(res.body) : event.meet_code,
+              conference_requested: res.body ? !!hangoutLinkOf(res.body) : event.conference_requested,
               last_synced_at: new Date().toISOString(),
             })
             .eq('id', event.id);
