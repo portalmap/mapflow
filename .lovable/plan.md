@@ -1,27 +1,45 @@
-# A opção não existe no Admin — caminho alternativo
+# Filtro de agendas na Agenda (como no Google)
 
-As telas que você enviou mostram todas as **Configurações de vídeo do Meet** do seu domínio (reações, telefonia, gravação, qualidade, interoperabilidade, efeitos, integrações, pareamento). Não há item de **relatório/acompanhamento de participação** entre elas.
+## Situação atual (verificada)
 
-Isso significa uma coisa só: a edição do Workspace do domínio `assessoriamap.com.br` não oferece o relatório de participação do Meet como opção de administrador. Não adianta continuar procurando nesse menu.
+Os compromissos importados do Google guardam de qual agenda vieram. Hoje existem, na sua conta:
 
-## A boa notícia
+- Rodrigo Braz — 1.897
+- Sua agenda principal — 1.012
+- Victor Borges — 493
+- Mirian Vilivas — 386
+- Portal — 347
+- Amanda Tavares — 344
+- Wendy Uda — 1
 
-O MAP Flow **não depende** dessa opção do Admin. O módulo Gestão lê a participação direto pela API do Google Meet, usando a conta Google conectada. Essa leitura funciona mesmo sem o relatório de participação estar ligado no Admin — o que ela exige é:
+Ou seja: as agendas de colegas continuam aparecendo porque foram importadas antes, e não existe nenhum controle na tela para escolher o que exibir.
 
-- a conta conectada ser a **organizadora** da reunião (ou do mesmo domínio), e
-- a autorização de leitura das reuniões concedida à conta conectada.
+## O que muda
 
-## O que fazer agora (5 minutos, sem Admin)
+Um painel novo "Minhas agendas", igual ao do Google, ao lado do calendário:
 
-1. Abrir a **Agenda** no MAP Flow e clicar em **Reconectar** no Google uma vez. Isso pede a nova permissão de leitura das reuniões (é o passo que ainda falta).
-2. Entrar em uma reunião do Meet criada pela sua conta (pode ser uma reunião instantânea de teste, sozinho mesmo).
-3. Abrir **Gestão > Ao vivo** e aguardar um ciclo de atualização (30 segundos).
+- Lista cada agenda encontrada nos seus compromissos (sua agenda, agendas de colegas e "Criados aqui" para os compromissos locais), com o nome da pessoa quando possível.
+- Uma caixinha de marcar por agenda: desmarcada, os compromissos daquela pessoa desaparecem da visualização (Mês, Semana e Dia). Nada é apagado.
+- Cada agenda ganha uma cor fixa própria, e os compromissos vindos dela passam a usar essa cor — dá para saber de quem é o compromisso pela cor.
+- Botões rápidos: "Somente a minha" e "Todas".
+- A escolha fica guardada no navegador, então na próxima visita a agenda abre já filtrada do jeito que você deixou.
+- Em telas pequenas o painel vira um botão "Agendas" que abre a lista.
 
-## Como interpretar o resultado
+Sincronização com o Google, convites, tarefas, Gestão e os demais módulos continuam iguais.
 
-- **Aparece a reunião e você na lista de online:** está tudo funcionando; a partir daí o histórico também passa a ser preenchido na aba "Presença em reuniões".
-- **Continua vazio:** aí sim o bloqueio é da edição do Workspace, e o único caminho é subir para uma edição que libere os dados de participação do Meet (Business Standard ou superior). Nesse caso eu adiciono no painel um aviso explicando isso, em vez de deixar a tela vazia sem explicação.
+## Detalhes técnicos
 
-## O que eu faço em seguida
+- Novo módulo isolado `src/components/agenda/AgendaCalendarFilter.tsx` + `src/lib/agendaCalendars.ts`:
+  - deriva a lista de agendas a partir de `google_calendar_id` dos eventos carregados (normalizando `primary` para a conta conectada, lida de `calendar_google_accounts`), com fallback "Criados aqui" para `source != 'google'`;
+  - resolve nome de exibição pelo `profiles.email` quando existir, senão usa o próprio e-mail;
+  - paleta determinística (hash do id da agenda) mapeada em tokens do design system;
+  - seleção persistida em `localStorage` (`agenda:calendars:<userId>`), leitura via `useEffect` para não quebrar hidratação.
+- `src/page-views/Agenda.tsx`: filtra `events` pela seleção antes de passar para as views e renderiza o painel (aside no desktop, Sheet no mobile).
+- `AgendaWeekView.tsx` / `AgendaMonthView.tsx`: a cor do bloco passa a vir de um `calendarColor` resolvido pelo helper quando o evento é do Google; nenhuma mudança de layout/sobreposição.
+- Sem migração, sem mudança em hooks de dados, RLS ou sincronização.
 
-Depois da reconexão, eu rodo a verificação do lado do servidor e digo exatamente o que o Google respondeu — se for recusa por plano, a mensagem vem nomeada e a gente decide o próximo passo com base nela. Nenhuma mudança de código é necessária antes desse teste.
+## Verificação
+
+1. Abrir /agenda: painel lista as 7 agendas com cores distintas.
+2. Desmarcar Rodrigo/Mirian/Amanda: os blocos deles saem nas três visões; "Somente a minha" deixa apenas a sua.
+3. Recarregar a página: a seleção permanece.
