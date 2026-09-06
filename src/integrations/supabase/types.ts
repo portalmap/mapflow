@@ -275,6 +275,7 @@ export type Database = {
           completed_at: string | null
           conference_phone: string | null
           conference_pin: string | null
+          conference_requested: boolean
           created_at: string
           deleted_at: string | null
           description: string | null
@@ -317,6 +318,7 @@ export type Database = {
           completed_at?: string | null
           conference_phone?: string | null
           conference_pin?: string | null
+          conference_requested?: boolean
           created_at?: string
           deleted_at?: string | null
           description?: string | null
@@ -359,6 +361,7 @@ export type Database = {
           completed_at?: string | null
           conference_phone?: string | null
           conference_pin?: string | null
+          conference_requested?: boolean
           created_at?: string
           deleted_at?: string | null
           description?: string | null
