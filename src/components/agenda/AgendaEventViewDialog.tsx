@@ -65,7 +65,7 @@ function reminderLabel(minutes: number) {
   return `${minutes} minutos antes`;
 }
 
-export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit }: Props) {
+export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit, onDuplicate }: Props) {
   const { user } = useAuth();
   const { data: guests } = useEventGuests(event?.id);
   const deleteEvent = useDeleteEvent();
