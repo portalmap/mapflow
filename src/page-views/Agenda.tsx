@@ -128,16 +128,30 @@ export default function Agenda() {
           : 'container mx-auto space-y-5 p-3 md:p-6'
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground md:text-3xl">
-            <CalendarDays className="h-6 w-6 text-brand" />
-            Agenda
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Seus compromissos, lembretes e convites em um só lugar
-          </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goPrev} aria-label="Anterior">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setReference(new Date())}>
+            Hoje
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goNext} aria-label="Próximo">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="ml-1 text-sm font-medium capitalize text-foreground">{periodLabel}</span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? 'Sair da tela cheia' : 'Expandir tela cheia'}
+            title={isFullscreen ? 'Sair da tela cheia' : 'Expandir tela cheia'}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
         </div>
+
         <div className="flex items-center gap-2">
           <GoogleAgendaButton />
           <DropdownMenu>
@@ -157,33 +171,8 @@ export default function Agenda() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goPrev} aria-label="Anterior">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setReference(new Date())}>
-            Hoje
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={goNext} aria-label="Próximo">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <span className="ml-2 text-sm font-medium capitalize text-foreground">{periodLabel}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={toggleFullscreen}
-            aria-label={isFullscreen ? 'Sair da tela cheia' : 'Expandir tela cheia'}
-            title={isFullscreen ? 'Sair da tela cheia' : 'Expandir tela cheia'}
-          >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)}>
+        <Tabs value={view} onValueChange={(v) => setView(v as ViewMode)} className="ml-auto">
           <TabsList>
             <TabsTrigger value="month">Mês</TabsTrigger>
             <TabsTrigger value="week">Semana</TabsTrigger>
