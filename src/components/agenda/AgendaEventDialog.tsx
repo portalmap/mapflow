@@ -13,7 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, X, Plus, ExternalLink } from 'lucide-react';
+import { Trash2, X, Plus, ExternalLink, Video } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import {
+  RECURRENCE_OPTIONS,
+  buildRecurrence,
+  detectRecurrence,
+  type RecurrenceOption,
+} from './agendaRecurrence';
 import { useAllProfiles } from '@/hooks/useAllProfiles';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -34,9 +41,15 @@ const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#0ea5e9'
 
 const REMINDERS = [
   { value: 'none', label: 'Sem lembrete' },
+  { value: '0', label: 'Na hora do compromisso' },
+  { value: '5', label: '5 minutos antes' },
+  { value: '10', label: '10 minutos antes' },
   { value: '15', label: '15 minutos antes' },
+  { value: '30', label: '30 minutos antes' },
   { value: '60', label: '1 hora antes' },
+  { value: '120', label: '2 horas antes' },
   { value: '1440', label: '1 dia antes' },
+  { value: '10080', label: '1 semana antes' },
 ];
 
 const TITLE_PLACEHOLDER: Record<AgendaItemType, string> = {
@@ -54,7 +67,12 @@ interface Props {
   defaultType?: AgendaItemType;
 }
 
-type GuestDraft = { user_id?: string | null; email?: string | null; display_name?: string | null };
+type GuestDraft = {
+  user_id?: string | null;
+  email?: string | null;
+  display_name?: string | null;
+  optional?: boolean;
+};
 
 function toLocalInput(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -99,6 +117,13 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
   const [autoDecline, setAutoDecline] = useState(false);
   const [guests, setGuests] = useState<GuestDraft[]>([]);
   const [emailDraft, setEmailDraft] = useState('');
+  const [recurrence, setRecurrence] = useState<RecurrenceOption>('none');
+  const [withMeet, setWithMeet] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [visibility, setVisibility] = useState('default');
+  const [canModify, setCanModify] = useState(false);
+  const [canInvite, setCanInvite] = useState(true);
+  const [canSeeOthers, setCanSeeOthers] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -116,6 +141,13 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
       setReminder(event.reminder_minutes ? String(event.reminder_minutes) : 'none');
       setCompleted(!!event.completed_at);
       setAutoDecline(!!event.auto_decline);
+      setRecurrence(detectRecurrence(event.recurrence));
+      setWithMeet(!!event.hangout_link || !!event.conference_requested);
+      setBusy(event.transparency !== 'transparent');
+      setVisibility(event.visibility || 'default');
+      setCanModify(!!event.guests_can_modify);
+      setCanInvite(event.guests_can_invite_others !== false);
+      setCanSeeOthers(event.guests_can_see_others !== false);
     } else {
       const base = defaultDate ? new Date(defaultDate) : new Date();
       if (!defaultDate) base.setMinutes(0, 0, 0);
@@ -133,6 +165,13 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
       setCompleted(false);
       setAutoDecline(defaultType === 'out_of_office');
       setGuests([]);
+      setRecurrence('none');
+      setWithMeet(false);
+      setBusy(true);
+      setVisibility('default');
+      setCanModify(false);
+      setCanInvite(true);
+      setCanSeeOthers(true);
     }
     setEmailDraft('');
   }, [open, event, defaultDate, defaultType]);
@@ -144,6 +183,7 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
         user_id: g.user_id,
         email: g.email,
         display_name: g.display_name,
+        optional: !!g.optional,
       })),
     );
   }, [open, event, existingGuests]);
@@ -204,6 +244,16 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
       item_type: itemType,
       completed_at: itemType === 'task' && completed ? new Date().toISOString() : null,
       auto_decline: itemType === 'out_of_office' ? autoDecline : false,
+      reminders: reminder === 'none' ? null : [{ method: 'popup', minutes: Number(reminder) }],
+      conference_requested: itemType === 'event' ? withMeet : false,
+      transparency: busy ? 'opaque' : 'transparent',
+      visibility,
+      guests_can_modify: itemType === 'event' ? canModify : false,
+      guests_can_invite_others: itemType === 'event' ? canInvite : true,
+      guests_can_see_others: itemType === 'event' ? canSeeOthers : true,
+      recurrence: event?.recurring_event_id
+        ? (event.recurrence ?? null)
+        : buildRecurrence(recurrence, startsAt),
       guests: itemType === 'event' ? guests : [],
     };
 
@@ -226,9 +276,9 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{event ? 'Compromisso' : 'Novo item da agenda'}</DialogTitle>
+          <DialogTitle>{event ? 'Editar compromisso' : 'Novo item da agenda'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -353,6 +403,87 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
             </div>
           </div>
 
+          {isEventType && (
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="flex items-center gap-2 text-sm">
+                  <Video className="h-4 w-4" /> Videoconferência do Google Meet
+                </Label>
+                <Switch
+                  checked={withMeet}
+                  disabled={!isOwner || !!event?.recurring_event_id}
+                  onCheckedChange={setWithMeet}
+                />
+              </div>
+              {event?.hangout_link && (
+                <a
+                  href={event.hangout_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {event.hangout_link}
+                </a>
+              )}
+              <p className="text-xs text-muted-foreground">
+                O link é criado pelo Google ao salvar e enviado aos convidados.
+              </p>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Repetição</Label>
+              <Select
+                value={recurrence}
+                onValueChange={(v) => setRecurrence(v as RecurrenceOption)}
+                disabled={!isOwner || !!event?.recurring_event_id || recurrence === 'custom'}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RECURRENCE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                  {recurrence === 'custom' && (
+                    <SelectItem value="custom">Personalizada (definida no Google)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {event?.recurring_event_id && (
+                <p className="text-xs text-muted-foreground">
+                  Esta é uma ocorrência da série; a alteração vale só para este dia.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Visibilidade</Label>
+              <Select value={visibility} onValueChange={setVisibility} disabled={!isOwner}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Padrão da agenda</SelectItem>
+                  <SelectItem value="public">Público</SelectItem>
+                  <SelectItem value="private">Privado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-md border border-border p-3">
+            <div>
+              <Label className="text-sm">Mostrar como ocupado</Label>
+              <p className="text-xs text-muted-foreground">
+                Desligue para aparecer como disponível na sua agenda.
+              </p>
+            </div>
+            <Switch checked={busy} disabled={!isOwner} onCheckedChange={setBusy} />
+          </div>
+
           {event && isEventType && canRespond && (
             <div className="space-y-2 rounded-md border border-border p-3">
               <Label className="text-sm font-medium">Você vai participar?</Label>
@@ -427,6 +558,23 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
                 <Button type="button" variant="outline" size="icon" onClick={addEmail}>
                   <Plus className="h-4 w-4" />
                 </Button>
+              </div>
+
+              <Separator />
+              <Label className="text-sm font-medium">Os convidados podem</Label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-xs font-normal">Editar o compromisso</Label>
+                  <Switch checked={canModify} onCheckedChange={setCanModify} />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-xs font-normal">Convidar outras pessoas</Label>
+                  <Switch checked={canInvite} onCheckedChange={setCanInvite} />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-xs font-normal">Ver a lista de convidados</Label>
+                  <Switch checked={canSeeOthers} onCheckedChange={setCanSeeOthers} />
+                </div>
               </div>
 
               {guests.length > 0 && (

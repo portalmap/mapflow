@@ -35,6 +35,7 @@ import {
 import { AgendaMonthView } from '@/components/agenda/AgendaMonthView';
 import { AgendaWeekView } from '@/components/agenda/AgendaWeekView';
 import { AgendaEventDialog } from '@/components/agenda/AgendaEventDialog';
+import { AgendaEventViewDialog } from '@/components/agenda/AgendaEventViewDialog';
 import { AgendaCalendarFilter } from '@/components/agenda/AgendaCalendarFilter';
 import { GoogleAgendaButton } from '@/components/agenda/GoogleAgendaButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -54,6 +55,7 @@ export default function Agenda() {
   const [view, setView] = useState<ViewMode>('month');
   const [reference, setReference] = useState(() => new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const [defaultType, setDefaultType] = useState<AgendaItemType>('event');
@@ -101,9 +103,17 @@ export default function Agenda() {
     setDialogOpen(true);
   };
 
+  // Primeiro clique: cartão de leitura. A edição abre pelo botão "Editar".
   const openEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setDefaultDate(undefined);
+    setViewOpen(true);
+  };
+
+  const editEvent = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setDefaultDate(undefined);
+    setViewOpen(false);
     setDialogOpen(true);
   };
 
@@ -226,6 +236,13 @@ export default function Agenda() {
         </div>
       )}
 
+
+      <AgendaEventViewDialog
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        event={selectedEvent}
+        onEdit={editEvent}
+      />
 
       <AgendaEventDialog
         open={dialogOpen}

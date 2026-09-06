@@ -182,6 +182,9 @@ export type Database = {
           invite_error: string | null
           invite_status: string
           invited_at: string | null
+          is_organizer: boolean
+          is_self: boolean
+          optional: boolean
           response_status: string
           updated_at: string
           user_id: string | null
@@ -195,6 +198,9 @@ export type Database = {
           invite_error?: string | null
           invite_status?: string
           invited_at?: string | null
+          is_organizer?: boolean
+          is_self?: boolean
+          optional?: boolean
           response_status?: string
           updated_at?: string
           user_id?: string | null
@@ -208,6 +214,9 @@ export type Database = {
           invite_error?: string | null
           invite_status?: string
           invited_at?: string | null
+          is_organizer?: boolean
+          is_self?: boolean
+          optional?: boolean
           response_status?: string
           updated_at?: string
           user_id?: string | null
@@ -261,8 +270,12 @@ export type Database = {
         Row: {
           all_day: boolean
           auto_decline: boolean
+          can_edit: boolean
           color: string
           completed_at: string | null
+          conference_phone: string | null
+          conference_pin: string | null
+          conference_requested: boolean
           created_at: string
           deleted_at: string | null
           description: string | null
@@ -273,25 +286,39 @@ export type Database = {
           google_html_link: string | null
           google_task_id: string | null
           google_task_list_id: string | null
+          guests_can_invite_others: boolean
+          guests_can_modify: boolean
+          guests_can_see_others: boolean
           hangout_link: string | null
           id: string
           item_type: string
           last_synced_at: string | null
           location: string | null
           meet_code: string | null
+          organizer_email: string | null
+          organizer_name: string | null
+          recurrence: string[] | null
+          recurring_event_id: string | null
           reminder_minutes: number | null
+          reminders: Json | null
           response_status: string | null
           source: string
           starts_at: string
           title: string
+          transparency: string
           updated_at: string
           user_id: string
+          visibility: string
         }
         Insert: {
           all_day?: boolean
           auto_decline?: boolean
+          can_edit?: boolean
           color?: string
           completed_at?: string | null
+          conference_phone?: string | null
+          conference_pin?: string | null
+          conference_requested?: boolean
           created_at?: string
           deleted_at?: string | null
           description?: string | null
@@ -302,25 +329,39 @@ export type Database = {
           google_html_link?: string | null
           google_task_id?: string | null
           google_task_list_id?: string | null
+          guests_can_invite_others?: boolean
+          guests_can_modify?: boolean
+          guests_can_see_others?: boolean
           hangout_link?: string | null
           id?: string
           item_type?: string
           last_synced_at?: string | null
           location?: string | null
           meet_code?: string | null
+          organizer_email?: string | null
+          organizer_name?: string | null
+          recurrence?: string[] | null
+          recurring_event_id?: string | null
           reminder_minutes?: number | null
+          reminders?: Json | null
           response_status?: string | null
           source?: string
           starts_at: string
           title: string
+          transparency?: string
           updated_at?: string
           user_id: string
+          visibility?: string
         }
         Update: {
           all_day?: boolean
           auto_decline?: boolean
+          can_edit?: boolean
           color?: string
           completed_at?: string | null
+          conference_phone?: string | null
+          conference_pin?: string | null
+          conference_requested?: boolean
           created_at?: string
           deleted_at?: string | null
           description?: string | null
@@ -331,19 +372,29 @@ export type Database = {
           google_html_link?: string | null
           google_task_id?: string | null
           google_task_list_id?: string | null
+          guests_can_invite_others?: boolean
+          guests_can_modify?: boolean
+          guests_can_see_others?: boolean
           hangout_link?: string | null
           id?: string
           item_type?: string
           last_synced_at?: string | null
           location?: string | null
           meet_code?: string | null
+          organizer_email?: string | null
+          organizer_name?: string | null
+          recurrence?: string[] | null
+          recurring_event_id?: string | null
           reminder_minutes?: number | null
+          reminders?: Json | null
           response_status?: string | null
           source?: string
           starts_at?: string
           title?: string
+          transparency?: string
           updated_at?: string
           user_id?: string
+          visibility?: string
         }
         Relationships: []
       }

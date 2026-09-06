@@ -29,18 +29,38 @@ interface GoogleEvent {
   htmlLink?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
-  attendees?: { email?: string; displayName?: string; responseStatus?: string; self?: boolean }[];
-  creator?: { email?: string; self?: boolean };
-  organizer?: { email?: string; self?: boolean };
+  attendees?: {
+    email?: string;
+    displayName?: string;
+    responseStatus?: string;
+    self?: boolean;
+    organizer?: boolean;
+    optional?: boolean;
+  }[];
+  creator?: { email?: string; self?: boolean; displayName?: string };
+  organizer?: { email?: string; self?: boolean; displayName?: string };
   outOfOfficeProperties?: { autoDeclineMode?: string };
   hangoutLink?: string;
   conferenceData?: {
     conferenceId?: string;
-    entryPoints?: { entryPointType?: string; uri?: string }[];
+    entryPoints?: {
+      entryPointType?: string;
+      uri?: string;
+      label?: string;
+      pin?: string;
+      regionCode?: string;
+    }[];
   };
   reminders?: { useDefault?: boolean; overrides?: { method: string; minutes: number }[] };
-
+  recurrence?: string[];
+  recurringEventId?: string;
+  transparency?: string;
+  visibility?: string;
+  guestsCanModify?: boolean;
+  guestsCanInviteOthers?: boolean;
+  guestsCanSeeOtherGuests?: boolean;
 }
+
 
 interface GoogleTask {
   id: string;
@@ -88,22 +108,23 @@ const google = (connectionAPIKey: string, path: string, init?: RequestInit) =>
 const googleTasks = (connectionAPIKey: string, path: string, init?: RequestInit) =>
   googleApi(connectionAPIKey, 'tasks/v1', path, init);
 
-async function guestEmails(admin: any, eventId: string): Promise<{ email: string; displayName?: string }[]> {
+async function guestEmails(admin: any, eventId: string): Promise<GoogleAttendeeInput[]> {
   const { data: guests } = await admin
     .from('calendar_event_guests')
-    .select('user_id, email, display_name')
+    .select('user_id, email, display_name, optional')
     .eq('event_id', eventId);
 
-  const out: { email: string; displayName?: string }[] = [];
+  const out: GoogleAttendeeInput[] = [];
   for (const g of guests ?? []) {
+    const extra = { displayName: g.display_name ?? undefined, optional: !!g.optional };
     if (g.email) {
-      out.push({ email: g.email, displayName: g.display_name ?? undefined });
+      out.push({ email: g.email, ...extra });
       continue;
     }
     if (g.user_id) {
       try {
         const { data } = await admin.auth.admin.getUserById(g.user_id);
-        if (data?.user?.email) out.push({ email: data.user.email, displayName: g.display_name ?? undefined });
+        if (data?.user?.email) out.push({ email: data.user.email, ...extra });
       } catch {
         /* ignore */
       }
@@ -111,6 +132,7 @@ async function guestEmails(admin: any, eventId: string): Promise<{ email: string
   }
   return out;
 }
+
 
 const EVENT_TYPE_TO_LOCAL: Record<string, ItemType> = {
   default: 'event',
@@ -125,7 +147,9 @@ const LOCAL_TO_EVENT_TYPE: Record<ItemType, string> = {
   focus_time: 'focusTime',
 };
 
-function toGooglePayload(event: any, attendees: { email: string; displayName?: string }[]) {
+type GoogleAttendeeInput = { email: string; displayName?: string; optional?: boolean };
+
+function toGooglePayload(event: any, attendees: GoogleAttendeeInput[]) {
   const itemType: ItemType = (event.item_type ?? 'event') as ItemType;
   const payload: Record<string, unknown> = {
     summary: event.title,
@@ -145,6 +169,13 @@ function toGooglePayload(event: any, attendees: { email: string; displayName?: s
   }
   // Ausência e hora de se concentrar não aceitam convidados no Google.
   if (itemType === 'event' && attendees.length) payload['attendees'] = attendees;
+  if (itemType === 'event') {
+    payload['guestsCanModify'] = !!event.guests_can_modify;
+    payload['guestsCanInviteOthers'] = event.guests_can_invite_others !== false;
+    payload['guestsCanSeeOtherGuests'] = event.guests_can_see_others !== false;
+    payload['transparency'] = event.transparency === 'transparent' ? 'transparent' : 'opaque';
+    payload['visibility'] = event.visibility || 'default';
+  }
   if (itemType === 'out_of_office') {
     payload['eventType'] = 'outOfOffice';
     payload['transparency'] = 'opaque';
@@ -155,11 +186,48 @@ function toGooglePayload(event: any, attendees: { email: string; displayName?: s
     payload['eventType'] = 'focusTime';
     payload['transparency'] = 'opaque';
   }
-  payload['reminders'] = event.reminder_minutes
-    ? { useDefault: false, overrides: [{ method: 'popup', minutes: event.reminder_minutes }] }
+
+  // Repetição: só em evento não vinculado a uma série existente (uma ocorrência
+  // isolada é editada sem alterar a regra da série, como no Google).
+  const rules = Array.isArray(event.recurrence) ? event.recurrence.filter(Boolean) : [];
+  if (!event.recurring_event_id) payload['recurrence'] = rules.length ? rules : undefined;
+
+  // Notificações: lista completa quando houver; senão o lembrete único legado.
+  const overrides = normalizeReminders(event);
+  payload['reminders'] = overrides.length
+    ? { useDefault: false, overrides }
     : { useDefault: true };
+
+  // Videoconferência (Google Meet).
+  if (event.conference_requested && !event.hangout_link) {
+    payload['conferenceData'] = {
+      createRequest: {
+        requestId: `mapflow-${event.id}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    };
+  } else if (!event.conference_requested && event.hangout_link) {
+    payload['conferenceData'] = null;
+  }
   return payload;
 }
+
+/** Lista de notificações do compromisso, no formato do Google. */
+function normalizeReminders(event: any): { method: string; minutes: number }[] {
+  const raw = Array.isArray(event.reminders) ? event.reminders : null;
+  if (raw?.length) {
+    return raw
+      .map((r: any) => ({
+        method: r?.method === 'email' ? 'email' : 'popup',
+        minutes: Number(r?.minutes),
+      }))
+      .filter((r: any) => Number.isFinite(r.minutes) && r.minutes >= 0)
+      .slice(0, 5);
+  }
+  if (event.reminder_minutes) return [{ method: 'popup', minutes: Number(event.reminder_minutes) }];
+  return [];
+}
+
 
 /** Link do Google Meet do evento, quando existir. */
 function hangoutLinkOf(ev: GoogleEvent): string | null {
@@ -178,7 +246,21 @@ function meetCodeOf(ev: GoogleEvent): string | null {
 }
 
 
-function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
+/** Telefone e PIN de acesso à videoconferência, quando o Google enviar. */
+function phoneEntryOf(ev: GoogleEvent): { phone: string | null; pin: string | null } {
+  const entry = (ev.conferenceData?.entryPoints ?? []).find(
+    (e) => e.entryPointType === 'phone' && e.uri,
+  );
+  if (!entry) return { phone: null, pin: null };
+  return { phone: (entry.label || entry.uri || '').replace('tel:', '') || null, pin: entry.pin ?? null };
+}
+
+function fromGoogleEvent(
+  ev: GoogleEvent,
+  userId: string,
+  calendarId: string,
+  recurrence?: string[] | null,
+) {
   const allDay = !!ev.start?.date;
   const startsAt = allDay
     ? new Date(`${ev.start!.date}T00:00:00`)
@@ -188,6 +270,9 @@ function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
     : new Date(ev.end?.dateTime ?? startsAt.getTime() + 3600_000);
   const reminder = ev.reminders?.overrides?.[0]?.minutes ?? null;
   const self = (ev.attendees ?? []).find((a) => a.self);
+  const organizer = ev.organizer ?? ev.creator;
+  const { phone, pin } = phoneEntryOf(ev);
+  const hangout = hangoutLinkOf(ev);
 
   return {
     user_id: userId,
@@ -198,6 +283,7 @@ function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
     ends_at: endsAt.toISOString(),
     all_day: allDay,
     reminder_minutes: reminder,
+    reminders: ev.reminders?.overrides?.length ? ev.reminders.overrides : null,
     item_type: EVENT_TYPE_TO_LOCAL[ev.eventType ?? 'default'] ?? 'event',
     auto_decline:
       ev.outOfOfficeProperties?.autoDeclineMode === 'declineAllConflictingInvitations' ||
@@ -207,14 +293,28 @@ function fromGoogleEvent(ev: GoogleEvent, userId: string, calendarId: string) {
     google_calendar_id: calendarId,
     google_etag: ev.etag ?? null,
     google_html_link: ev.htmlLink ?? null,
-    hangout_link: hangoutLinkOf(ev),
+    hangout_link: hangout,
     meet_code: meetCodeOf(ev),
-
+    conference_requested: !!hangout,
+    conference_phone: phone,
+    conference_pin: pin,
+    organizer_email: organizer?.email ?? null,
+    organizer_name: organizer?.displayName ?? null,
+    guests_can_modify: !!ev.guestsCanModify,
+    guests_can_invite_others: ev.guestsCanInviteOthers !== false,
+    guests_can_see_others: ev.guestsCanSeeOtherGuests !== false,
+    transparency: ev.transparency === 'transparent' ? 'transparent' : 'opaque',
+    visibility: ev.visibility || 'default',
+    recurrence: recurrence ?? ev.recurrence ?? null,
+    recurring_event_id: ev.recurringEventId ?? null,
+    // Só o organizador (ou convidado com permissão) edita o evento no Google.
+    can_edit: !!organizer?.self || !!ev.guestsCanModify,
     source: 'google',
     last_synced_at: new Date().toISOString(),
     deleted_at: null,
   };
 }
+
 
 function taskDue(task: GoogleTask): { starts: Date; ends: Date } | null {
   if (!task.due) return null;
@@ -419,7 +519,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         const attendees = await guestEmails(admin, event.id);
         const res = await google(
           connectionAPIKey,
-          `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
+          `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all&conferenceDataVersion=1`,
           { method: 'POST', body: JSON.stringify(toGooglePayload(event, attendees)) },
         );
         if (res.ok && res.body?.id) {
@@ -430,6 +530,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
               google_calendar_id: calendarId,
               google_etag: res.body.etag ?? null,
               google_html_link: res.body.htmlLink ?? null,
+              hangout_link: hangoutLinkOf(res.body),
+              meet_code: meetCodeOf(res.body),
+              conference_requested: !!hangoutLinkOf(res.body),
               last_synced_at: new Date().toISOString(),
             })
             .eq('id', event.id);
@@ -448,7 +551,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         const attendees = await guestEmails(admin, event.id);
         const res = await google(
           connectionAPIKey,
-          `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.google_event_id)}?sendUpdates=all`,
+          `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.google_event_id)}?sendUpdates=all&conferenceDataVersion=1`,
           { method: 'PATCH', body: JSON.stringify(toGooglePayload(event, attendees)) },
         );
         if (res.ok) {
@@ -457,6 +560,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
             .update({
               google_etag: res.body?.etag ?? null,
               google_html_link: res.body?.htmlLink ?? event.google_html_link,
+              hangout_link: res.body ? hangoutLinkOf(res.body) : event.hangout_link,
+              meet_code: res.body ? meetCodeOf(res.body) : event.meet_code,
+              conference_requested: res.body ? !!hangoutLinkOf(res.body) : event.conference_requested,
               last_synced_at: new Date().toISOString(),
             })
             .eq('id', event.id);
@@ -528,6 +634,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
   }
 
 
+  /** RRULE por evento mestre, para não buscar a mesma série duas vezes. */
+  const recurrenceCache = new Map<string, string[] | null>();
+
   /** Aplica uma página de eventos do Google em lote (poucas idas ao banco por página). */
   const applyPage = async (calId: string, items: GoogleEvent[]) => {
     const valid = items.filter((ev) => !!ev.id);
@@ -561,8 +670,23 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     const localIdByGoogleId = new Map<string, string>();
     const toInsert: any[] = [];
 
+    // Regra de repetição: vem do evento "mestre" da série (uma ocorrência isolada
+    // não traz o RRULE). Buscamos cada mestre uma vez por sincronização.
     for (const ev of live) {
-      const row = fromGoogleEvent(ev, userId, calId);
+      const masterId = ev.recurringEventId;
+      if (!masterId || recurrenceCache.has(masterId)) continue;
+      const res = await google(
+        connectionAPIKey,
+        `/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(masterId)}`,
+      );
+      recurrenceCache.set(masterId, res.ok ? (res.body?.recurrence ?? null) : null);
+    }
+
+    for (const ev of live) {
+      const recurrence = ev.recurringEventId
+        ? recurrenceCache.get(ev.recurringEventId) ?? null
+        : ev.recurrence ?? null;
+      const row = fromGoogleEvent(ev, userId, calId, recurrence);
       const existing = existingByGoogleId.get(ev.id);
       if (existing) {
         localIdByGoogleId.set(ev.id, existing.id);
@@ -600,33 +724,73 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       }
     }
 
-    // Espelha a resposta de cada convidado (Sim/Não/Talvez) vinda do Google.
-    const desired = new Map<string, string>(); // `${localId}|${email}` -> status
-    const withGuests: string[] = [];
+    // Espelha a lista completa de convidados do Google (nome, organizador,
+    // opcional e resposta), para que a Agenda mostre exatamente o que o Google mostra.
+    const eventIds: string[] = [];
+    type GuestRow = {
+      event_id: string;
+      email: string;
+      display_name: string | null;
+      response_status: string;
+      is_organizer: boolean;
+      optional: boolean;
+      is_self: boolean;
+      invite_status: string;
+    };
+    const desired = new Map<string, GuestRow>(); // `${localId}|${email}` -> linha
     for (const ev of live) {
       const localId = localIdByGoogleId.get(ev.id);
-      if (!localId || !(ev.attendees ?? []).length) continue;
-      withGuests.push(localId);
+      if (!localId) continue;
+      eventIds.push(localId);
       for (const attendee of ev.attendees ?? []) {
         const email = attendee.email?.trim().toLowerCase();
         if (!email) continue;
-        desired.set(`${localId}|${email}`, attendee.responseStatus ?? 'needsAction');
+        desired.set(`${localId}|${email}`, {
+          event_id: localId,
+          email,
+          display_name: attendee.displayName ?? null,
+          response_status: attendee.responseStatus ?? 'needsAction',
+          is_organizer: !!attendee.organizer,
+          optional: !!attendee.optional,
+          is_self: !!attendee.self,
+          invite_status: 'sent',
+        });
       }
     }
-    if (withGuests.length) {
+
+    if (eventIds.length) {
       const { data: guests } = await admin
         .from('calendar_event_guests')
-        .select('id, event_id, email, response_status')
-        .in('event_id', withGuests)
-        .not('email', 'is', null);
+        .select('id, event_id, email, display_name, response_status, is_organizer, optional, is_self')
+        .in('event_id', eventIds);
+
+      const seen = new Set<string>();
       for (const g of guests ?? []) {
-        const want = desired.get(`${g.event_id}|${(g.email ?? '').trim().toLowerCase()}`);
-        if (want && want !== g.response_status) {
-          await admin.from('calendar_event_guests').update({ response_status: want }).eq('id', g.id);
+        const email = (g.email ?? '').trim().toLowerCase();
+        const key = `${g.event_id}|${email}`;
+        const want = email ? desired.get(key) : null;
+        if (!want) {
+          // Convidado que não está mais no Google (ou linha sem e-mail vinda daqui).
+          if (email) await admin.from('calendar_event_guests').delete().eq('id', g.id);
+          continue;
+        }
+        seen.add(key);
+        const changed =
+          g.response_status !== want.response_status ||
+          (g.display_name ?? null) !== want.display_name ||
+          g.is_organizer !== want.is_organizer ||
+          g.optional !== want.optional ||
+          g.is_self !== want.is_self;
+        if (changed) {
+          await admin.from('calendar_event_guests').update(want).eq('id', g.id);
         }
       }
+
+      const toAdd = [...desired.entries()].filter(([key]) => !seen.has(key)).map(([, row]) => row);
+      if (toAdd.length) await admin.from('calendar_event_guests').insert(toAdd);
     }
   };
+
 
   let stoppedForTime = false;
 
