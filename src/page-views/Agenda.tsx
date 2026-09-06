@@ -121,10 +121,8 @@ export default function Agenda() {
     <div
       ref={fullscreenRef}
       className={cn(
-        'flex flex-col bg-background',
-        isFullscreen
-          ? 'h-screen w-screen overflow-hidden p-4'
-          : 'container mx-auto space-y-5 p-3 md:p-6'
+        'flex min-h-0 flex-col gap-3 bg-background',
+        isFullscreen ? 'h-screen w-screen overflow-hidden p-4' : 'h-full w-full p-3 md:p-4'
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
