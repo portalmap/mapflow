@@ -87,10 +87,20 @@ function toDateInput(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defaultType = 'event' }: Props) {
+export function AgendaEventDialog({
+  open,
+  onOpenChange,
+  event,
+  duplicateFrom,
+  onDuplicate,
+  defaultDate,
+  defaultType = 'event',
+}: Props) {
   const { user } = useAuth();
   const { data: profiles } = useAllProfiles();
-  const { data: existingGuests } = useEventGuests(event?.id);
+  // Base para preencher os campos: o próprio compromisso ou o original da cópia.
+  const source = event ?? duplicateFrom ?? null;
+  const { data: existingGuests } = useEventGuests(source?.id);
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
