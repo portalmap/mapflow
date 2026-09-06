@@ -632,6 +632,11 @@ export function AgendaEventDialog({
             <span />
           )}
           <div className="flex gap-2">
+            {event && isOwner && onDuplicate && (
+              <Button variant="outline" onClick={() => onDuplicate(event)}>
+                <Copy className="mr-2 h-4 w-4" /> Duplicar
+              </Button>
+            )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
             {isOwner && (
               <Button onClick={handleSubmit} disabled={saving}>
