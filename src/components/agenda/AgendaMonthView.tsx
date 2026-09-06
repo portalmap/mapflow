@@ -10,7 +10,7 @@ interface Props {
   onSelectEvent: (event: CalendarEvent) => void;
 }
 
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 export function AgendaMonthView({ reference, events, onSelectDay, onSelectEvent }: Props) {
   const gridStart = startOfWeek(startOfMonth(reference), { weekStartsOn: 1 });
