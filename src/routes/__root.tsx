@@ -159,9 +159,11 @@ function RootComponent() {
           {mounted ? (
             <AuthProvider>
               <WorkspaceProvider>
+                <ActivityTracker />
                 <Outlet />
               </WorkspaceProvider>
             </AuthProvider>
+
           ) : null}
         </TooltipProvider>
       </ThemeProvider>
