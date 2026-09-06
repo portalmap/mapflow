@@ -125,7 +125,7 @@ export function FlowUsageReport() {
       'Offline (min)',
       'Último acesso',
       'Dias com acesso',
-      'Dias por semana',
+      'Dias do período',
       'Sessões',
       'Média por dia (min)',
       'Média por sessão (min)',
@@ -137,7 +137,7 @@ export function FlowUsageReport() {
       Math.round(u.offlineSeconds / 60),
       u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString('pt-BR') : '',
       u.activeDays,
-      u.daysPerWeek,
+      periodDays,
       u.sessionCount,
       Math.round(u.avgPerDaySeconds / 60),
       Math.round(u.avgPerSessionSeconds / 60),
@@ -246,8 +246,7 @@ export function FlowUsageReport() {
                     <TableHead>Online inativo</TableHead>
                     <TableHead>Offline</TableHead>
                     <TableHead>Último acesso</TableHead>
-                    <TableHead>Dias</TableHead>
-                    <TableHead>Dias/semana</TableHead>
+                    <TableHead>Dias acessados</TableHead>
                     <TableHead>Sessões</TableHead>
                     <TableHead>Média/dia</TableHead>
                   </TableRow>
@@ -278,15 +277,16 @@ export function FlowUsageReport() {
                       <TableCell className="whitespace-nowrap text-sm">
                         {formatWhen(u.lastSeenAt)}
                       </TableCell>
-                      <TableCell>{u.activeDays}</TableCell>
-                      <TableCell>{u.daysPerWeek}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {u.activeDays} / {periodDays}
+                      </TableCell>
                       <TableCell>{u.sessionCount}</TableCell>
                       <TableCell>{formatDuration(u.avgPerDaySeconds)}</TableCell>
                     </TableRow>
                   ))}
                   {!users.length ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                         Nenhum registro no período.
                       </TableCell>
                     </TableRow>
