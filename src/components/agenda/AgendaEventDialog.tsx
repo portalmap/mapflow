@@ -63,6 +63,9 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: CalendarEvent | null;
+  /** Compromisso usado como base para uma cópia (nada é salvo até clicar em Salvar). */
+  duplicateFrom?: CalendarEvent | null;
+  onDuplicate?: (event: CalendarEvent) => void;
   defaultDate?: Date;
   defaultType?: AgendaItemType;
 }
