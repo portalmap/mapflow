@@ -108,22 +108,23 @@ const google = (connectionAPIKey: string, path: string, init?: RequestInit) =>
 const googleTasks = (connectionAPIKey: string, path: string, init?: RequestInit) =>
   googleApi(connectionAPIKey, 'tasks/v1', path, init);
 
-async function guestEmails(admin: any, eventId: string): Promise<{ email: string; displayName?: string }[]> {
+async function guestEmails(admin: any, eventId: string): Promise<GoogleAttendeeInput[]> {
   const { data: guests } = await admin
     .from('calendar_event_guests')
-    .select('user_id, email, display_name')
+    .select('user_id, email, display_name, optional')
     .eq('event_id', eventId);
 
-  const out: { email: string; displayName?: string }[] = [];
+  const out: GoogleAttendeeInput[] = [];
   for (const g of guests ?? []) {
+    const extra = { displayName: g.display_name ?? undefined, optional: !!g.optional };
     if (g.email) {
-      out.push({ email: g.email, displayName: g.display_name ?? undefined });
+      out.push({ email: g.email, ...extra });
       continue;
     }
     if (g.user_id) {
       try {
         const { data } = await admin.auth.admin.getUserById(g.user_id);
-        if (data?.user?.email) out.push({ email: data.user.email, displayName: g.display_name ?? undefined });
+        if (data?.user?.email) out.push({ email: data.user.email, ...extra });
       } catch {
         /* ignore */
       }
@@ -131,6 +132,7 @@ async function guestEmails(admin: any, eventId: string): Promise<{ email: string
   }
   return out;
 }
+
 
 const EVENT_TYPE_TO_LOCAL: Record<string, ItemType> = {
   default: 'event',
