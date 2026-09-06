@@ -279,6 +279,11 @@ export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit, onDup
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Fechar
             </Button>
+            {canEdit && onDuplicate && (
+              <Button variant="outline" onClick={() => onDuplicate(event)}>
+                <CopyPlus className="mr-2 h-4 w-4" /> Duplicar
+              </Button>
+            )}
             {canEdit && (
               <Button onClick={() => onEdit(event)}>
                 <Pencil className="mr-2 h-4 w-4" /> Editar
