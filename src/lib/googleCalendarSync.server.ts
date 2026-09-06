@@ -661,8 +661,23 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     const localIdByGoogleId = new Map<string, string>();
     const toInsert: any[] = [];
 
+    // Regra de repetição: vem do evento "mestre" da série (uma ocorrência isolada
+    // não traz o RRULE). Buscamos cada mestre uma vez por sincronização.
     for (const ev of live) {
-      const row = fromGoogleEvent(ev, userId, calId);
+      const masterId = ev.recurringEventId;
+      if (!masterId || recurrenceCache.has(masterId)) continue;
+      const res = await google(
+        connectionAPIKey,
+        `/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(masterId)}`,
+      );
+      recurrenceCache.set(masterId, res.ok ? (res.body?.recurrence ?? null) : null);
+    }
+
+    for (const ev of live) {
+      const recurrence = ev.recurringEventId
+        ? recurrenceCache.get(ev.recurringEventId) ?? null
+        : ev.recurrence ?? null;
+      const row = fromGoogleEvent(ev, userId, calId, recurrence);
       const existing = existingByGoogleId.get(ev.id);
       if (existing) {
         localIdByGoogleId.set(ev.id, existing.id);
@@ -700,33 +715,63 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       }
     }
 
-    // Espelha a resposta de cada convidado (Sim/Não/Talvez) vinda do Google.
-    const desired = new Map<string, string>(); // `${localId}|${email}` -> status
-    const withGuests: string[] = [];
+    // Espelha a lista completa de convidados do Google (nome, organizador,
+    // opcional e resposta), para que a Agenda mostre exatamente o que o Google mostra.
+    const eventIds: string[] = [];
+    const desired = new Map<string, Record<string, unknown>>(); // `${localId}|${email}` -> linha
     for (const ev of live) {
       const localId = localIdByGoogleId.get(ev.id);
-      if (!localId || !(ev.attendees ?? []).length) continue;
-      withGuests.push(localId);
+      if (!localId) continue;
+      eventIds.push(localId);
       for (const attendee of ev.attendees ?? []) {
         const email = attendee.email?.trim().toLowerCase();
         if (!email) continue;
-        desired.set(`${localId}|${email}`, attendee.responseStatus ?? 'needsAction');
+        desired.set(`${localId}|${email}`, {
+          event_id: localId,
+          email,
+          display_name: attendee.displayName ?? null,
+          response_status: attendee.responseStatus ?? 'needsAction',
+          is_organizer: !!attendee.organizer,
+          optional: !!attendee.optional,
+          is_self: !!attendee.self,
+          invite_status: 'sent',
+        });
       }
     }
-    if (withGuests.length) {
+
+    if (eventIds.length) {
       const { data: guests } = await admin
         .from('calendar_event_guests')
-        .select('id, event_id, email, response_status')
-        .in('event_id', withGuests)
-        .not('email', 'is', null);
+        .select('id, event_id, email, display_name, response_status, is_organizer, optional, is_self')
+        .in('event_id', eventIds);
+
+      const seen = new Set<string>();
       for (const g of guests ?? []) {
-        const want = desired.get(`${g.event_id}|${(g.email ?? '').trim().toLowerCase()}`);
-        if (want && want !== g.response_status) {
-          await admin.from('calendar_event_guests').update({ response_status: want }).eq('id', g.id);
+        const email = (g.email ?? '').trim().toLowerCase();
+        const key = `${g.event_id}|${email}`;
+        const want = email ? desired.get(key) : null;
+        if (!want) {
+          // Convidado que não está mais no Google (ou linha sem e-mail vinda daqui).
+          if (email) await admin.from('calendar_event_guests').delete().eq('id', g.id);
+          continue;
+        }
+        seen.add(key);
+        const changed =
+          g.response_status !== want['response_status'] ||
+          (g.display_name ?? null) !== (want['display_name'] ?? null) ||
+          g.is_organizer !== want['is_organizer'] ||
+          g.optional !== want['optional'] ||
+          g.is_self !== want['is_self'];
+        if (changed) {
+          await admin.from('calendar_event_guests').update(want).eq('id', g.id);
         }
       }
+
+      const toAdd = [...desired.entries()].filter(([key]) => !seen.has(key)).map(([, row]) => row);
+      if (toAdd.length) await admin.from('calendar_event_guests').insert(toAdd);
     }
   };
+
 
   let stoppedForTime = false;
 
