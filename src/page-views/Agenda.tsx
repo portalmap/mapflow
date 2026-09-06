@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Maximize2,
   Minimize2,
+  ListFilter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
