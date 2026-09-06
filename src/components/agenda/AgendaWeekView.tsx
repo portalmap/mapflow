@@ -278,7 +278,7 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
                         key={event.id}
                         type="button"
                         onClick={() => onSelectEvent(event)}
-                        className="absolute flex flex-col items-stretch justify-start overflow-hidden rounded border border-card/60 px-1 py-0.5 text-left text-[11px] leading-tight text-primary-foreground shadow-sm transition-shadow hover:z-30 hover:shadow-md focus-visible:z-30"
+                        className="absolute flex flex-col items-stretch justify-center overflow-hidden rounded border border-card/60 px-1 text-left text-[11px] leading-tight text-primary-foreground shadow-sm transition-shadow hover:z-30 hover:shadow-md focus-visible:z-30"
                         style={{
                           top,
                           height,
