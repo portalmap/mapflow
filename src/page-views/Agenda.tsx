@@ -253,12 +253,15 @@ export default function Agenda() {
         onOpenChange={setViewOpen}
         event={selectedEvent}
         onEdit={editEvent}
+        onDuplicate={duplicateEvent}
       />
 
       <AgendaEventDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         event={selectedEvent}
+        duplicateFrom={duplicateSource}
+        onDuplicate={duplicateEvent}
         defaultDate={defaultDate}
         defaultType={defaultType}
       />
