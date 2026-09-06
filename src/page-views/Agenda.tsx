@@ -78,6 +78,9 @@ export default function Agenda() {
   }, [view, reference]);
 
   const { data: events = [], isLoading } = useAgendaEvents(rangeStart, rangeEnd);
+  const { calendars, hidden, toggle, showAll, showOnlyMine, visibleEvents } =
+    useAgendaCalendars(events);
+
 
   const goPrev = () => {
     if (view === 'month') setReference((d) => subMonths(d, 1));
