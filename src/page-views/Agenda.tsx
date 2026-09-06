@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  CalendarDays,
   ChevronDown,
   Maximize2,
   Minimize2,
