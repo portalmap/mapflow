@@ -3445,6 +3445,45 @@ export type Database = {
           },
         ]
       }
+      user_activity_sessions: {
+        Row: {
+          created_at: string
+          day: string
+          ended_at: string | null
+          id: string
+          last_seen_at: string
+          started_at: string
+          state: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day?: string
+          ended_at?: string | null
+          id?: string
+          last_seen_at?: string
+          started_at?: string
+          state?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          ended_at?: string | null
+          id?: string
+          last_seen_at?: string
+          started_at?: string
+          state?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_column_preferences: {
         Row: {
           column_order: string[] | null
@@ -3692,6 +3731,14 @@ export type Database = {
           full_name: string
           user_id: string
         }[]
+      }
+      get_flow_usage_details: {
+        Args: { _from: string; _to: string; _user_id: string }
+        Returns: Json
+      }
+      get_flow_usage_report: {
+        Args: { _from: string; _to: string }
+        Returns: Json
       }
       get_head_account_productivity_report: {
         Args: {
