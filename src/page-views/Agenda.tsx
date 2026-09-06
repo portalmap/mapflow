@@ -35,14 +35,18 @@ import {
 import { AgendaMonthView } from '@/components/agenda/AgendaMonthView';
 import { AgendaWeekView } from '@/components/agenda/AgendaWeekView';
 import { AgendaEventDialog } from '@/components/agenda/AgendaEventDialog';
+import { AgendaCalendarFilter } from '@/components/agenda/AgendaCalendarFilter';
 import { GoogleAgendaButton } from '@/components/agenda/GoogleAgendaButton';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   AGENDA_ITEM_TYPES,
   useAgendaEvents,
   type AgendaItemType,
   type CalendarEvent,
 } from '@/hooks/useAgenda';
+import { useAgendaCalendars } from '@/hooks/useAgendaCalendars';
 import { useFullscreen } from '@/hooks/useFullscreen';
+
 
 type ViewMode = 'month' | 'week' | 'day';
 
