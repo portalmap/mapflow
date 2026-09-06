@@ -307,8 +307,8 @@ function fromGoogleEvent(
     visibility: ev.visibility || 'default',
     recurrence: recurrence ?? ev.recurrence ?? null,
     recurring_event_id: ev.recurringEventId ?? null,
-    // Só o organizador (ou convidado com permissão) edita o evento no Google.
-    can_edit: !!organizer?.self || !!ev.guestsCanModify,
+    // Regra do MAP Flow: só o organizador edita (permissão de convidado não conta).
+    can_edit: !!organizer?.self,
     source: 'google',
     last_synced_at: new Date().toISOString(),
     deleted_at: null,
