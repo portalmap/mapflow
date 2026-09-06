@@ -17,6 +17,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { ActivityTracker } from "@/components/ActivityTracker";
+
 
 function NotFoundComponent() {
   return (
