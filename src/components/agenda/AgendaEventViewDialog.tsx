@@ -78,7 +78,8 @@ export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit }: Pro
   if (!event) return null;
 
   const isOwner = event.user_id === user?.id;
-  const canEdit = event.source === 'google' ? event.can_edit || isOwner : isOwner;
+  // Google: apenas o organizador edita/exclui. Local: quem criou.
+  const canEdit = event.source === 'google' ? event.can_edit : isOwner;
   const canRespond = !!myGuest || !!event.response_status;
   const myResponse = myGuest?.response_status ?? event.response_status ?? 'needsAction';
   const recurrence = describeRecurrence(event.recurrence);
