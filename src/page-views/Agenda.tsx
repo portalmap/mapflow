@@ -61,13 +61,13 @@ export default function Agenda() {
 
   const { rangeStart, rangeEnd, days } = useMemo(() => {
     if (view === 'month') {
-      const start = startOfWeek(startOfMonth(reference), { weekStartsOn: 0 });
-      const end = endOfWeek(endOfMonth(reference), { weekStartsOn: 0 });
+      const start = startOfWeek(startOfMonth(reference), { weekStartsOn: 1 });
+      const end = endOfWeek(endOfMonth(reference), { weekStartsOn: 1 });
       return { rangeStart: start, rangeEnd: end, days: [] as Date[] };
     }
     if (view === 'week') {
-      const start = startOfWeek(reference, { weekStartsOn: 0 });
-      const end = endOfWeek(reference, { weekStartsOn: 0 });
+      const start = startOfWeek(reference, { weekStartsOn: 1 });
+      const end = endOfWeek(reference, { weekStartsOn: 1 });
       return {
         rangeStart: start,
         rangeEnd: end,
@@ -110,8 +110,8 @@ export default function Agenda() {
   const periodLabel = useMemo(() => {
     if (view === 'month') return format(reference, "MMMM 'de' yyyy", { locale: ptBR });
     if (view === 'week') {
-      const start = startOfWeek(reference, { weekStartsOn: 0 });
-      const end = endOfWeek(reference, { weekStartsOn: 0 });
+      const start = startOfWeek(reference, { weekStartsOn: 1 });
+      const end = endOfWeek(reference, { weekStartsOn: 1 });
       return `${format(start, 'd MMM', { locale: ptBR })} – ${format(end, "d MMM yyyy", { locale: ptBR })}`;
     }
     return format(reference, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });

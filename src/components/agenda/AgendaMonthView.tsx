@@ -13,7 +13,7 @@ interface Props {
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function AgendaMonthView({ reference, events, onSelectDay, onSelectEvent }: Props) {
-  const gridStart = startOfWeek(startOfMonth(reference), { weekStartsOn: 0 });
+  const gridStart = startOfWeek(startOfMonth(reference), { weekStartsOn: 1 });
   const monthEnd = endOfMonth(reference);
   const days: Date[] = [];
   let cursor = gridStart;
