@@ -41,6 +41,23 @@ export interface CalendarEvent {
   completed_at: string | null;
   auto_decline: boolean;
   response_status: string | null;
+  hangout_link: string | null;
+  meet_code: string | null;
+  conference_requested: boolean;
+  conference_phone: string | null;
+  conference_pin: string | null;
+  organizer_email: string | null;
+  organizer_name: string | null;
+  guests_can_modify: boolean;
+  guests_can_invite_others: boolean;
+  guests_can_see_others: boolean;
+  transparency: string;
+  visibility: string;
+  recurrence: string[] | null;
+  recurring_event_id: string | null;
+  reminders: { method: string; minutes: number }[] | null;
+  can_edit: boolean;
+  google_calendar_id: string | null;
 }
 
 export interface CalendarGuest {
@@ -52,6 +69,9 @@ export interface CalendarGuest {
   response_status: string;
   invite_status: string;
   invite_error: string | null;
+  is_organizer: boolean;
+  optional: boolean;
+  is_self: boolean;
 }
 
 export interface EventInput {
@@ -66,7 +86,20 @@ export interface EventInput {
   item_type: AgendaItemType;
   completed_at?: string | null;
   auto_decline?: boolean;
-  guests: { user_id?: string | null; email?: string | null; display_name?: string | null }[];
+  conference_requested?: boolean;
+  guests_can_modify?: boolean;
+  guests_can_invite_others?: boolean;
+  guests_can_see_others?: boolean;
+  transparency?: string;
+  visibility?: string;
+  recurrence?: string[] | null;
+  reminders?: { method: string; minutes: number }[] | null;
+  guests: {
+    user_id?: string | null;
+    email?: string | null;
+    display_name?: string | null;
+    optional?: boolean;
+  }[];
 }
 
 const AGENDA_KEY = 'agenda-events';
@@ -137,6 +170,7 @@ async function syncGuests(eventId: string, guests: EventInput['guests']) {
       user_id: g.user_id ?? null,
       email: g.email ? g.email.trim().toLowerCase() : null,
       display_name: g.display_name ?? null,
+      optional: !!g.optional,
     }));
   if (toInsert.length) {
     const { error } = await supabase.from('calendar_event_guests').insert(toInsert);
