@@ -57,6 +57,7 @@ export default function Agenda() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [duplicateSource, setDuplicateSource] = useState<CalendarEvent | null>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const [defaultType, setDefaultType] = useState<AgendaItemType>('event');
   const { ref: fullscreenRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen();
