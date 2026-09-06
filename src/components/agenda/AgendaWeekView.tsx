@@ -239,7 +239,7 @@ export function AgendaWeekView({ days, events, onSelectEvent, onSelectSlot }: Pr
           )}
 
           {/* Grade de horários */}
-          <div ref={scrollRef} className="max-h-[calc(100vh-19rem)] min-h-[420px] overflow-y-auto">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
             <div className="grid" style={gridCols}>
               {/* Coluna de horas */}
               <div className="border-r border-border">
