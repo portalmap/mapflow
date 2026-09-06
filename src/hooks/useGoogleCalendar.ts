@@ -268,9 +268,10 @@ export function useDisconnectGoogleAccount() {
       toast.success('Conta desconectada', {
         description:
           removed > 0
-            ? `${removed} compromisso(s) do Google a partir de hoje foram removidos. O histórico anterior foi mantido.`
-            : 'O histórico anterior foi mantido.',
+            ? `${removed} compromisso(s) do Google foram removidos daqui. Reconecte para trazê-los de volta.`
+            : 'Nenhum compromisso do Google estava salvo aqui.',
       });
+
     },
     onError: (e: Error) => toast.error(e.message || 'Erro ao desconectar'),
   });
