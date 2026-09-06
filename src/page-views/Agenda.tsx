@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Maximize2,
   Minimize2,
+  ListFilter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -35,14 +36,18 @@ import {
 import { AgendaMonthView } from '@/components/agenda/AgendaMonthView';
 import { AgendaWeekView } from '@/components/agenda/AgendaWeekView';
 import { AgendaEventDialog } from '@/components/agenda/AgendaEventDialog';
+import { AgendaCalendarFilter } from '@/components/agenda/AgendaCalendarFilter';
 import { GoogleAgendaButton } from '@/components/agenda/GoogleAgendaButton';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   AGENDA_ITEM_TYPES,
   useAgendaEvents,
   type AgendaItemType,
   type CalendarEvent,
 } from '@/hooks/useAgenda';
+import { useAgendaCalendars } from '@/hooks/useAgendaCalendars';
 import { useFullscreen } from '@/hooks/useFullscreen';
+
 
 type ViewMode = 'month' | 'week' | 'day';
 
@@ -74,6 +79,9 @@ export default function Agenda() {
   }, [view, reference]);
 
   const { data: events = [], isLoading } = useAgendaEvents(rangeStart, rangeEnd);
+  const { calendars, hidden, toggle, showAll, showOnlyMine, visibleEvents } =
+    useAgendaCalendars(events);
+
 
   const goPrev = () => {
     if (view === 'month') setReference((d) => subMonths(d, 1));
@@ -188,21 +196,60 @@ export default function Agenda() {
         <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
           Carregando agenda...
         </div>
-      ) : view === 'month' ? (
-        <AgendaMonthView
-          reference={reference}
-          events={events}
-          onSelectDay={(day) => openNew(new Date(day.setHours(9, 0, 0, 0)))}
-          onSelectEvent={openEvent}
-        />
       ) : (
-        <AgendaWeekView
-          days={days}
-          events={events}
-          onSelectEvent={openEvent}
-          onSelectSlot={(date) => openNew(date)}
-        />
+        <div className="flex min-h-0 flex-1 gap-4">
+          <aside className="hidden w-56 shrink-0 overflow-y-auto rounded-lg border border-border p-3 lg:block">
+            <AgendaCalendarFilter
+              calendars={calendars}
+              hidden={hidden}
+              onToggle={toggle}
+              onShowAll={showAll}
+              onShowOnlyMine={showOnlyMine}
+            />
+          </aside>
+
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 lg:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <ListFilter className="mr-1.5 h-4 w-4" />
+                    Agendas
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 overflow-y-auto">
+                  <div className="pt-6">
+                    <AgendaCalendarFilter
+                      calendars={calendars}
+                      hidden={hidden}
+                      onToggle={toggle}
+                      onShowAll={showAll}
+                      onShowOnlyMine={showOnlyMine}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
+            {view === 'month' ? (
+              <AgendaMonthView
+                reference={reference}
+                events={visibleEvents}
+                onSelectDay={(day) => openNew(new Date(day.setHours(9, 0, 0, 0)))}
+                onSelectEvent={openEvent}
+              />
+            ) : (
+              <AgendaWeekView
+                days={days}
+                events={visibleEvents}
+                onSelectEvent={openEvent}
+                onSelectSlot={(date) => openNew(date)}
+              />
+            )}
+          </div>
+        </div>
       )}
+
 
       <AgendaEventDialog
         open={dialogOpen}
