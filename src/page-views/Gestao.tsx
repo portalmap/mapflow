@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LiveMeetingsPanel } from '@/components/gestao/LiveMeetingsPanel';
 import { MeetingAttendanceReport } from '@/components/gestao/MeetingAttendanceReport';
 import { ManagementAccessSettings } from '@/components/gestao/ManagementAccessSettings';
+import { FlowUsageReport } from '@/components/gestao/FlowUsageReport';
 import { useManagementAccess } from '@/hooks/useManagement';
 
 export default function Gestao() {
@@ -54,6 +55,7 @@ export default function Gestao() {
         <TabsList>
           <TabsTrigger value="aovivo">Ao vivo</TabsTrigger>
           <TabsTrigger value="reunioes">Presença em reuniões</TabsTrigger>
+          <TabsTrigger value="tempo">Tempo no Flow</TabsTrigger>
           <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
         </TabsList>
         <TabsContent value="aovivo" className="mt-4">
@@ -61,6 +63,9 @@ export default function Gestao() {
         </TabsContent>
         <TabsContent value="reunioes" className="mt-4">
           <MeetingAttendanceReport />
+        </TabsContent>
+        <TabsContent value="tempo" className="mt-4">
+          <FlowUsageReport />
         </TabsContent>
         <TabsContent value="configuracoes" className="mt-4">
           <ManagementAccessSettings canManage={!!data.canManage} />
