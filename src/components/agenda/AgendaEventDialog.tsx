@@ -94,7 +94,12 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
 
   const respondInvite = useRespondInvite();
 
-  const isOwner = !event || event.user_id === user?.id;
+  // Novo compromisso: sempre editável. Google: só o organizador. Local: quem criou.
+  const isOwner = !event
+    ? true
+    : event.source === 'google'
+      ? event.can_edit
+      : event.user_id === user?.id;
 
   // Convite próprio: linha de convidado do usuário ou cópia importada do Google.
   const myGuest = useMemo(
