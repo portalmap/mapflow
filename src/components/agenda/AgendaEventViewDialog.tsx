@@ -5,6 +5,7 @@ import {
   Bell,
   CalendarClock,
   Copy,
+  CopyPlus,
   ExternalLink,
   MapPin,
   Pencil,
@@ -42,6 +43,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   event: CalendarEvent | null;
   onEdit: (event: CalendarEvent) => void;
+  onDuplicate?: (event: CalendarEvent) => void;
 }
 
 function periodLabel(event: CalendarEvent) {
@@ -64,7 +66,7 @@ function reminderLabel(minutes: number) {
   return `${minutes} minutos antes`;
 }
 
-export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit }: Props) {
+export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit, onDuplicate }: Props) {
   const { user } = useAuth();
   const { data: guests } = useEventGuests(event?.id);
   const deleteEvent = useDeleteEvent();
@@ -278,6 +280,11 @@ export function AgendaEventViewDialog({ open, onOpenChange, event, onEdit }: Pro
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Fechar
             </Button>
+            {canEdit && onDuplicate && (
+              <Button variant="outline" onClick={() => onDuplicate(event)}>
+                <CopyPlus className="mr-2 h-4 w-4" /> Duplicar
+              </Button>
+            )}
             {canEdit && (
               <Button onClick={() => onEdit(event)}>
                 <Pencil className="mr-2 h-4 w-4" /> Editar

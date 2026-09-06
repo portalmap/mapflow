@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trash2, X, Plus, ExternalLink, Video } from 'lucide-react';
+import { Trash2, X, Plus, Copy, ExternalLink, Video } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
   RECURRENCE_OPTIONS,
@@ -63,6 +63,9 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: CalendarEvent | null;
+  /** Compromisso usado como base para uma cópia (nada é salvo até clicar em Salvar). */
+  duplicateFrom?: CalendarEvent | null;
+  onDuplicate?: (event: CalendarEvent) => void;
   defaultDate?: Date;
   defaultType?: AgendaItemType;
 }
@@ -84,10 +87,20 @@ function toDateInput(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defaultType = 'event' }: Props) {
+export function AgendaEventDialog({
+  open,
+  onOpenChange,
+  event,
+  duplicateFrom,
+  onDuplicate,
+  defaultDate,
+  defaultType = 'event',
+}: Props) {
   const { user } = useAuth();
   const { data: profiles } = useAllProfiles();
-  const { data: existingGuests } = useEventGuests(event?.id);
+  // Base para preencher os campos: o próprio compromisso ou o original da cópia.
+  const source = event ?? duplicateFrom ?? null;
+  const { data: existingGuests } = useEventGuests(source?.id);
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
   const deleteEvent = useDeleteEvent();
@@ -132,27 +145,28 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
 
   useEffect(() => {
     if (!open) return;
-    if (event) {
-      const s = new Date(event.starts_at);
-      const e = new Date(event.ends_at);
-      setItemType(event.item_type ?? 'event');
-      setTitle(event.title);
-      setDescription(event.description ?? '');
-      setLocation(event.location ?? '');
-      setAllDay(event.all_day);
-      setStart(event.all_day ? toDateInput(s) : toLocalInput(s));
-      setEnd(event.all_day ? toDateInput(e) : toLocalInput(e));
-      setColor(event.color);
-      setReminder(event.reminder_minutes ? String(event.reminder_minutes) : 'none');
-      setCompleted(!!event.completed_at);
-      setAutoDecline(!!event.auto_decline);
-      setRecurrence(detectRecurrence(event.recurrence));
-      setWithMeet(!!event.hangout_link || !!event.conference_requested);
-      setBusy(event.transparency !== 'transparent');
-      setVisibility(event.visibility || 'default');
-      setCanModify(!!event.guests_can_modify);
-      setCanInvite(event.guests_can_invite_others !== false);
-      setCanSeeOthers(event.guests_can_see_others !== false);
+    if (source) {
+      const isCopy = !event;
+      const s = new Date(source.starts_at);
+      const e = new Date(source.ends_at);
+      setItemType(source.item_type ?? 'event');
+      setTitle(isCopy ? `Cópia de ${source.title}` : source.title);
+      setDescription(source.description ?? '');
+      setLocation(source.location ?? '');
+      setAllDay(source.all_day);
+      setStart(source.all_day ? toDateInput(s) : toLocalInput(s));
+      setEnd(source.all_day ? toDateInput(e) : toLocalInput(e));
+      setColor(source.color);
+      setReminder(source.reminder_minutes ? String(source.reminder_minutes) : 'none');
+      setCompleted(isCopy ? false : !!source.completed_at);
+      setAutoDecline(!!source.auto_decline);
+      setRecurrence(detectRecurrence(source.recurrence));
+      setWithMeet(!!source.hangout_link || !!source.conference_requested);
+      setBusy(source.transparency !== 'transparent');
+      setVisibility(source.visibility || 'default');
+      setCanModify(!!source.guests_can_modify);
+      setCanInvite(source.guests_can_invite_others !== false);
+      setCanSeeOthers(source.guests_can_see_others !== false);
     } else {
       const base = defaultDate ? new Date(defaultDate) : new Date();
       if (!defaultDate) base.setMinutes(0, 0, 0);
@@ -179,10 +193,10 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
       setCanSeeOthers(true);
     }
     setEmailDraft('');
-  }, [open, event, defaultDate, defaultType]);
+  }, [open, event, source, defaultDate, defaultType]);
 
   useEffect(() => {
-    if (!open || !event) return;
+    if (!open || !source) return;
     setGuests(
       (existingGuests ?? []).map((g) => ({
         user_id: g.user_id,
@@ -191,7 +205,7 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
         optional: !!g.optional,
       })),
     );
-  }, [open, event, existingGuests]);
+  }, [open, source, existingGuests]);
 
   const profileOptions = useMemo(
     () => (profiles ?? []).filter((p) => p.id !== user?.id && !guests.some((g) => g.user_id === p.id)),
@@ -618,6 +632,11 @@ export function AgendaEventDialog({ open, onOpenChange, event, defaultDate, defa
             <span />
           )}
           <div className="flex gap-2">
+            {event && isOwner && onDuplicate && (
+              <Button variant="outline" onClick={() => onDuplicate(event)}>
+                <Copy className="mr-2 h-4 w-4" /> Duplicar
+              </Button>
+            )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
             {isOwner && (
               <Button onClick={handleSubmit} disabled={saving}>

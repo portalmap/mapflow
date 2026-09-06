@@ -57,6 +57,7 @@ export default function Agenda() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [duplicateSource, setDuplicateSource] = useState<CalendarEvent | null>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const [defaultType, setDefaultType] = useState<AgendaItemType>('event');
   const { ref: fullscreenRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen();
@@ -98,6 +99,7 @@ export default function Agenda() {
 
   const openNew = (date?: Date, type: AgendaItemType = 'event') => {
     setSelectedEvent(null);
+    setDuplicateSource(null);
     setDefaultDate(date);
     setDefaultType(type);
     setDialogOpen(true);
@@ -112,6 +114,16 @@ export default function Agenda() {
 
   const editEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
+    setDuplicateSource(null);
+    setDefaultDate(undefined);
+    setViewOpen(false);
+    setDialogOpen(true);
+  };
+
+  // Duplicar: abre a edição com uma cópia preenchida; nada é salvo até confirmar.
+  const duplicateEvent = (event: CalendarEvent) => {
+    setSelectedEvent(null);
+    setDuplicateSource(event);
     setDefaultDate(undefined);
     setViewOpen(false);
     setDialogOpen(true);
@@ -242,12 +254,15 @@ export default function Agenda() {
         onOpenChange={setViewOpen}
         event={selectedEvent}
         onEdit={editEvent}
+        onDuplicate={duplicateEvent}
       />
 
       <AgendaEventDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         event={selectedEvent}
+        duplicateFrom={duplicateSource}
+        onDuplicate={duplicateEvent}
         defaultDate={defaultDate}
         defaultType={defaultType}
       />
