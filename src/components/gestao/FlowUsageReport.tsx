@@ -87,12 +87,11 @@ export function FlowUsageReport() {
 
   const { from, to } = useMemo(() => rangeToDates(range), [range]);
   const periodDays = useMemo(() => {
-    const start = new Date(from);
-    const end = new Date(to);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
-  }, [from, to]);
+    if (range === 'today') return 1;
+    if (range === 'month') return new Date().getDate();
+    return Number(range) || 1;
+  }, [range]);
+
   const { data, isLoading, isFetching, refetch } = useFlowUsageReport(from, to);
   const details = useFlowUsageDetails(selected?.userId ?? null, from, to);
 
