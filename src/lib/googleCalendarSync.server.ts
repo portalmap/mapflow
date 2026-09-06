@@ -693,7 +693,11 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       const existing = existingByGoogleId.get(ev.id);
       if (existing) {
         localIdByGoogleId.set(ev.id, existing.id);
-        if (existing.google_etag === row.google_etag) continue;
+        // Rede de segurança: eventos importados antes do espelhamento de
+        // organizador/convidados não têm organizer_email — reaplica os dados
+        // mesmo que o Google não tenha alterado nada (etag igual).
+        const importedBeforeMetadata = !existing.organizer_email && !!row.organizer_email;
+        if (existing.google_etag === row.google_etag && !importedBeforeMetadata) continue;
         await admin.from('calendar_events').update(row).eq('id', existing.id);
         pulled += 1;
       } else {
