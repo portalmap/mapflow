@@ -99,6 +99,7 @@ export default function Agenda() {
 
   const openNew = (date?: Date, type: AgendaItemType = 'event') => {
     setSelectedEvent(null);
+    setDuplicateSource(null);
     setDefaultDate(date);
     setDefaultType(type);
     setDialogOpen(true);
