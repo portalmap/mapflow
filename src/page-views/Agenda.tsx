@@ -112,6 +112,16 @@ export default function Agenda() {
 
   const editEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
+    setDuplicateSource(null);
+    setDefaultDate(undefined);
+    setViewOpen(false);
+    setDialogOpen(true);
+  };
+
+  // Duplicar: abre a edição com uma cópia preenchida; nada é salvo até confirmar.
+  const duplicateEvent = (event: CalendarEvent) => {
+    setSelectedEvent(null);
+    setDuplicateSource(event);
     setDefaultDate(undefined);
     setViewOpen(false);
     setDialogOpen(true);
