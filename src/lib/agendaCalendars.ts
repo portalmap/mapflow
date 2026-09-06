@@ -96,13 +96,11 @@ export function buildCalendarList(
   const list = [...counts.entries()].map(([id, count]) => ({
     id,
     count,
-    isSelf: id === self,
+    isSelf: id !== LOCAL_CALENDAR_ID,
     color: colors[id] ?? LOCAL_CALENDAR_COLOR,
-    label:
-      id === LOCAL_CALENDAR_ID
-        ? 'Criados aqui'
-        : names[id] || (id === self ? 'Minha agenda' : id),
+    label: id === LOCAL_CALENDAR_ID ? 'Criados aqui' : 'Minha agenda',
   }));
+
 
   return list.sort((a, b) => {
     if (a.isSelf !== b.isSelf) return a.isSelf ? -1 : 1;
