@@ -37,7 +37,7 @@ import { AgendaWeekView } from '@/components/agenda/AgendaWeekView';
 import { AgendaEventDialog } from '@/components/agenda/AgendaEventDialog';
 import { AgendaCalendarFilter } from '@/components/agenda/AgendaCalendarFilter';
 import { GoogleAgendaButton } from '@/components/agenda/GoogleAgendaButton';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AGENDA_ITEM_TYPES,
   useAgendaEvents,
@@ -149,6 +149,28 @@ export default function Agenda() {
           >
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <ListFilter className="mr-1.5 h-4 w-4" />
+                Agendas
+                {hidden.length > 0 && (
+                  <span className="ml-1.5 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                    {hidden.length} oculta{hidden.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="max-h-[70vh] w-72 overflow-y-auto p-3">
+              <AgendaCalendarFilter
+                calendars={calendars}
+                hidden={hidden}
+                onToggle={toggle}
+                onShowAll={showAll}
+                onShowOnlyMine={showOnlyMine}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex items-center gap-2">
@@ -187,8 +209,6 @@ export default function Agenda() {
       ) : (
         <div className="flex min-h-0 flex-1 gap-4">
           <div className="min-w-0 flex-1">
-
-
             {view === 'month' ? (
               <AgendaMonthView
                 reference={reference}
