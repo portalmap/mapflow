@@ -1,32 +1,27 @@
-# Liberar o histórico de participação do Meet — caminho correto
+# A opção não existe no Admin — caminho alternativo
 
-O menu do Admin do Google mudou de nome. Abaixo o caminho atual, com o que fazer se cada item não aparecer.
+As telas que você enviou mostram todas as **Configurações de vídeo do Meet** do seu domínio (reações, telefonia, gravação, qualidade, interoperabilidade, efeitos, integrações, pareamento). Não há item de **relatório/acompanhamento de participação** entre elas.
 
-## Passo a passo (admin.google.com)
+Isso significa uma coisa só: a edição do Workspace do domínio `assessoriamap.com.br` não oferece o relatório de participação do Meet como opção de administrador. Não adianta continuar procurando nesse menu.
 
-1. Entre em **admin.google.com** com a conta administradora do domínio.
-2. No topo, use a **busca do Admin** (é o caminho mais confiável): digite `Meet` e escolha **Configurações do Google Meet**.
-   - Pelo menu: **Apps > Google Workspace > Google Meet**.
-3. Abra **Configurações de vídeo do Meet** e selecione a unidade organizacional no lado esquerdo (ou "Todos").
-4. Ative **Acompanhamento de participação / Relatório de participação** (em inglês: *Attendance tracking / Attendance reports*).
-   - Se essa opção não existir, o plano do Workspace não inclui o recurso (veja abaixo).
-5. Busque por `Controles de API` e confirme que a **Google Meet API** não está bloqueada.
-   - Pelo menu: **Segurança > Controle de acesso e dados > Controles de API > Gerenciar o acesso de apps de terceiros**.
-6. Volte ao MAP Flow, abra a **Agenda** e clique em **Reconectar** no Google uma vez, para autorizar a nova permissão de leitura das reuniões.
+## A boa notícia
 
-## Se nenhum desses itens aparecer
+O MAP Flow **não depende** dessa opção do Admin. O módulo Gestão lê a participação direto pela API do Google Meet, usando a conta Google conectada. Essa leitura funciona mesmo sem o relatório de participação estar ligado no Admin — o que ela exige é:
 
-Isso indica um destes casos — vale confirmar antes de mexer em mais alguma coisa:
+- a conta conectada ser a **organizadora** da reunião (ou do mesmo domínio), e
+- a autorização de leitura das reuniões concedida à conta conectada.
 
-- A conta usada não é administradora do domínio (só a conta admin vê **Apps** e **Segurança**).
-- O e-mail é Gmail comum, não Google Workspace: nesse caso não existe Admin console e o histórico de participação não é oferecido.
-- O plano é Business Starter / Frontline: o relatório de participação exige **Business Standard ou superior** (ou Enterprise/Education equivalentes).
+## O que fazer agora (5 minutos, sem Admin)
 
-## O que já está pronto no sistema
+1. Abrir a **Agenda** no MAP Flow e clicar em **Reconectar** no Google uma vez. Isso pede a nova permissão de leitura das reuniões (é o passo que ainda falta).
+2. Entrar em uma reunião do Meet criada pela sua conta (pode ser uma reunião instantânea de teste, sozinho mesmo).
+3. Abrir **Gestão > Ao vivo** e aguardar um ciclo de atualização (30 segundos).
 
-- A aba **Ao vivo** em Gestão já mostra as reuniões em andamento e quem está online, dependendo apenas da liberação acima e da reconexão da conta Google.
-- Nenhuma alteração de código é necessária para este item; ele é de configuração no Google.
+## Como interpretar o resultado
 
-## Como confirmar que funcionou
+- **Aparece a reunião e você na lista de online:** está tudo funcionando; a partir daí o histórico também passa a ser preenchido na aba "Presença em reuniões".
+- **Continua vazio:** aí sim o bloqueio é da edição do Workspace, e o único caminho é subir para uma edição que libere os dados de participação do Meet (Business Standard ou superior). Nesse caso eu adiciono no painel um aviso explicando isso, em vez de deixar a tela vazia sem explicação.
 
-Depois da reconexão, entre em uma reunião do Meet e abra **Gestão > Ao vivo**: em até um ciclo de atualização (30 s) a reunião e os participantes devem aparecer. Se continuar vazio, o bloqueio ainda está no lado do Google (plano ou permissão da conta organizadora).
+## O que eu faço em seguida
+
+Depois da reconexão, eu rodo a verificação do lado do servidor e digo exatamente o que o Google respondeu — se for recusa por plano, a mensagem vem nomeada e a gente decide o próximo passo com base nela. Nenhuma mudança de código é necessária antes desse teste.
