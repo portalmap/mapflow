@@ -266,17 +266,30 @@ Deno.serve(async (req) => {
   // 3a. Sincroniza a FOTO do Hub para o storage local (bucket privado "avatars").
   //     Totalmente isolado: qualquer falha só loga e o login continua.
   try {
-    if (hubAvatarPath && hubAvatarUrl) {
+    if (hubAvatarUrl) {
+      // Chave de idempotência: caminho do Hub quando existir; senão, a URL de
+      // origem sem a assinatura (query string), que muda a cada renovação.
+      let sourceKey = hubAvatarPath;
+      if (!sourceKey) {
+        try {
+          const u = new URL(hubAvatarUrl);
+          sourceKey = `hub:${u.origin}${u.pathname}`;
+        } catch {
+          sourceKey = `hub:${hubAvatarUrl.split("?")[0]}`;
+        }
+      }
+
       const { data: current } = await admin
         .from("profiles")
-        .select("avatar_path, avatar_origem")
+        .select("avatar_path, avatar_url, avatar_origem")
         .eq("id", existing.id)
         .maybeSingle();
 
       const origem = (current?.avatar_origem as string | null) ?? "hub";
       const savedPath = (current?.avatar_path as string | null) ?? null;
+      const savedUrl = (current?.avatar_url as string | null) ?? null;
 
-      if (origem !== "local" && savedPath !== hubAvatarPath) {
+      if (origem !== "local" && (savedPath !== sourceKey || !savedUrl)) {
         const resp = await fetch(hubAvatarUrl);
         if (!resp.ok) throw new Error(`avatar download failed: ${resp.status}`);
         const contentType = resp.headers.get("content-type") ?? "";
