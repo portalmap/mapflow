@@ -158,14 +158,7 @@ Deno.serve(async (req) => {
   }
 
   let payload: {
-    user?: {
-      id?: string;
-      email?: string;
-      name?: string;
-      nome?: string;
-      avatar_url?: string;
-      avatar_path?: string | null;
-    };
+    user?: Record<string, unknown>;
     role?: string;
     app?: string;
   };
@@ -175,14 +168,43 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid Hub response" }, 502, origin);
   }
 
-  const hubUser = payload.user ?? {};
-  const email = (hubUser.email ?? "").trim().toLowerCase();
-  const fullName = ((hubUser.nome ?? hubUser.name) ?? "").trim();
+  const hubUser = (payload.user ?? {}) as Record<string, unknown>;
+
+  // Aceita as variações de nome de campo que o Hub pode usar.
+  const pick = (keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = hubUser[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return null;
+  };
+
+  const email = (pick(["email", "e_mail"]) ?? "").toLowerCase();
+  const fullName = pick(["nome", "name", "full_name", "nome_completo", "display_name"]) ?? "";
   // Signed Hub URL — valid for only 7 days. Never persist it.
-  const hubAvatarUrl = (hubUser.avatar_url ?? "").trim() || null;
-  const hubAvatarPath = (hubUser.avatar_path ?? "") || null;
-  const hubUserId = (hubUser.id ?? "").trim() || null;
+  const hubAvatarUrl = pick([
+    "avatar_url",
+    "avatar",
+    "foto_url",
+    "foto",
+    "photo_url",
+    "picture",
+    "image_url",
+  ]);
+  const hubAvatarPath = pick(["avatar_path", "foto_path", "avatar_key"]);
+  const hubUserId = pick(["id", "user_id", "hub_user_id"]);
   const role = (payload.role ?? "").trim();
+
+  // Diagnóstico (sem dados sensíveis): quais campos o Hub realmente mandou.
+  console.log(
+    "hub payload fields",
+    JSON.stringify({
+      keys: Object.keys(hubUser).sort(),
+      has_name: !!fullName,
+      has_avatar_url: !!hubAvatarUrl,
+      has_avatar_path: !!hubAvatarPath,
+    }),
+  );
 
   if (!email) return json({ error: "Hub did not return email" }, 502, origin);
   if (payload.app && payload.app !== APP_SLUG) {
@@ -244,17 +266,30 @@ Deno.serve(async (req) => {
   // 3a. Sincroniza a FOTO do Hub para o storage local (bucket privado "avatars").
   //     Totalmente isolado: qualquer falha só loga e o login continua.
   try {
-    if (hubAvatarPath && hubAvatarUrl) {
+    if (hubAvatarUrl) {
+      // Chave de idempotência: caminho do Hub quando existir; senão, a URL de
+      // origem sem a assinatura (query string), que muda a cada renovação.
+      let sourceKey = hubAvatarPath;
+      if (!sourceKey) {
+        try {
+          const u = new URL(hubAvatarUrl);
+          sourceKey = `hub:${u.origin}${u.pathname}`;
+        } catch {
+          sourceKey = `hub:${hubAvatarUrl.split("?")[0]}`;
+        }
+      }
+
       const { data: current } = await admin
         .from("profiles")
-        .select("avatar_path, avatar_origem")
+        .select("avatar_path, avatar_url, avatar_origem")
         .eq("id", existing.id)
         .maybeSingle();
 
       const origem = (current?.avatar_origem as string | null) ?? "hub";
       const savedPath = (current?.avatar_path as string | null) ?? null;
+      const savedUrl = (current?.avatar_url as string | null) ?? null;
 
-      if (origem !== "local" && savedPath !== hubAvatarPath) {
+      if (origem !== "local" && (savedPath !== sourceKey || !savedUrl)) {
         const resp = await fetch(hubAvatarUrl);
         if (!resp.ok) throw new Error(`avatar download failed: ${resp.status}`);
         const contentType = resp.headers.get("content-type") ?? "";
@@ -292,7 +327,7 @@ Deno.serve(async (req) => {
           .from("profiles")
           .update({
             avatar_url: signed.signedUrl,
-            avatar_path: hubAvatarPath,
+            avatar_path: sourceKey,
             avatar_origem: "hub",
           })
           .eq("id", existing.id);
