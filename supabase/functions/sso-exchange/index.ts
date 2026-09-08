@@ -327,7 +327,7 @@ Deno.serve(async (req) => {
           .from("profiles")
           .update({
             avatar_url: signed.signedUrl,
-            avatar_path: hubAvatarPath,
+            avatar_path: sourceKey,
             avatar_origem: "hub",
           })
           .eq("id", existing.id);
