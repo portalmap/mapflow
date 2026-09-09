@@ -225,21 +225,13 @@
 
 @keyframes ticker-scroll {
   from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  to { transform: translateX(var(--ticker-shift, -50%)); }
 }
 
+/* Movimento garantido para todos: intencionalmente não desligado por
+   prefers-reduced-motion (decisão de produto — é um mural de avisos ao vivo). */
 .ticker-track {
   animation-name: ticker-scroll;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track {
-    animation: none;
-    transform: none;
-  }
-  .ticker-viewport {
-    mask-image: none;
-  }
 }
