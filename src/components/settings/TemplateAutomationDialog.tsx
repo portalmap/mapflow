@@ -45,6 +45,8 @@ interface TemplateAutomationDialogProps {
   lists: SpaceTemplateList[];
   automation?: TemplateAutomation | null;
   workspaceId: string;
+  /** Escopos permitidos dentro do modelo. Padrão: todos (modelo de Space). */
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
 }
 
 type BuilderStep = 'trigger' | 'action';
@@ -58,8 +60,10 @@ export function TemplateAutomationDialog({
   folders,
   lists,
   automation,
-  workspaceId
+  workspaceId,
+  allowedScopes = ['space', 'folder', 'list'],
 }: TemplateAutomationDialogProps) {
+  const defaultScope = allowedScopes[0];
   const createAutomation = useCreateTemplateAutomation();
   const updateAutomation = useUpdateTemplateAutomation();
 
