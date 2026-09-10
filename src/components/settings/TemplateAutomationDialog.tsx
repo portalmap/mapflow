@@ -123,6 +123,18 @@ export function TemplateAutomationDialog({
     }
   }, [automation, open]);
 
+  // Modelos de Pasta/Lista têm um único destino possível: já pré-seleciona.
+  useEffect(() => {
+    if (!open) return;
+    if (scopeType === 'folder' && !folderRefId && folders.length === 1) {
+      setFolderRefId(folders[0].id);
+    }
+    if (scopeType === 'list' && !listRefId && lists.length === 1) {
+      setListRefId(lists[0].id);
+    }
+  }, [open, scopeType, folderRefId, listRefId, folders, lists]);
+
+
   const resetForm = () => {
     setName('');
     setSelectedTrigger(null);
