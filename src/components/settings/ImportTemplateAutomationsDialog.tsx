@@ -27,6 +27,7 @@ interface ImportTemplateAutomationsDialogProps {
   onOpenChange: (open: boolean) => void;
   templateId: string;
   workspaceId: string;
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
 }
 
 type Selected = { type: 'space' | 'folder' | 'list'; id: string; name: string } | null;
@@ -36,6 +37,7 @@ export function ImportTemplateAutomationsDialog({
   onOpenChange,
   templateId,
   workspaceId,
+  allowedScopes,
 }: ImportTemplateAutomationsDialogProps) {
   const { data: spaces = [] } = useSpaces(workspaceId);
   const { data: folders = [] } = useFoldersForWorkspace(workspaceId);
@@ -81,7 +83,11 @@ export function ImportTemplateAutomationsDialog({
     if (!selected) return;
     setWarnings([]);
     importAutomations.mutate(
-      { templateId, source: { kind: 'scope', scopeType: selected.type, scopeId: selected.id, label: selected.name } },
+      {
+        templateId,
+        allowedScopes,
+        source: { kind: 'scope', scopeType: selected.type, scopeId: selected.id, label: selected.name },
+      },
       {
         onSuccess: (result) => {
           setWarnings(result.warnings);
@@ -95,7 +101,7 @@ export function ImportTemplateAutomationsDialog({
     if (!sourceTemplateId) return;
     setWarnings([]);
     importAutomations.mutate(
-      { templateId, source: { kind: 'template', sourceTemplateId, label: '' } },
+      { templateId, allowedScopes, source: { kind: 'template', sourceTemplateId, label: '' } },
       {
         onSuccess: (result) => {
           setWarnings(result.warnings);
