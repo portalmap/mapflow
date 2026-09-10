@@ -145,7 +145,7 @@ export function ImportTemplateAutomationsDialog({
                 className="pl-9"
               />
             </div>
-            <ScrollArea className="flex-1 min-h-[280px] border rounded-lg p-2">
+            <ScrollArea className="h-[45vh] max-h-[45vh] min-h-[200px] border rounded-lg p-2">
               <LocationTree
                 idPrefix="import-automations"
                 density="comfortable"
