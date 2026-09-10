@@ -3925,8 +3925,20 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
       }
+      mark_notifications_read_for_reference: {
+        Args: {
+          _reference_id: string
+          _reference_type: string
+          _user_ids: string[]
+        }
+        Returns: undefined
+      }
       norm_status_name: { Args: { _name: string }; Returns: string }
       normalize_client_key: { Args: { _valor: string }; Returns: string }
+      notif_resolve_task_notifications: {
+        Args: { _task_id: string }
+        Returns: undefined
+      }
       restore_space: { Args: { p_space_id: string }; Returns: undefined }
       resync_template_statuses: {
         Args: {
