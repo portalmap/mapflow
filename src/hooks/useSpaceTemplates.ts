@@ -1157,7 +1157,7 @@ export const useApplyTemplateAutomationsToSpaces = () => {
 
       const templateFolders = templateFoldersResult.data;
       const templateLists = templateListsResult.data;
-      const templateAutomations = templateAutomationsResult.data as TemplateAutomation[] | null;
+      const templateAutomations = (templateAutomationsResult.data || []) as unknown as TemplateAutomation[];
 
       // Sem automações habilitadas não é erro: nada será criado, apenas os spaces são processados.
 
