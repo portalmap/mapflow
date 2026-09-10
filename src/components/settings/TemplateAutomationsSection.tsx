@@ -131,7 +131,7 @@ export function TemplateAutomationsSection({
                 Automações do Template
               </CardTitle>
               <CardDescription className="mt-1">
-                Estas automações serão criadas automaticamente quando um Space for criado a partir deste template.
+                {description}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export function TemplateAutomationsSection({
                 Nenhuma automação configurada neste template.
               </p>
               <p className="text-muted-foreground text-xs mt-1">
-                Sem automações aqui, não é possível aplicar em Spaces, pastas ou listas.
+                Você pode adicionar aqui, importar de algo existente, ou aplicar o modelo sem nenhuma automação.
               </p>
               <div className="flex items-center justify-center gap-2 mt-3">
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
@@ -271,6 +271,7 @@ export function TemplateAutomationsSection({
         lists={lists}
         automation={editingAutomation}
         workspaceId={workspaceId}
+        allowedScopes={allowedScopes}
       />
 
       <ImportTemplateAutomationsDialog
