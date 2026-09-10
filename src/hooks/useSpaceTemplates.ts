@@ -1159,9 +1159,7 @@ export const useApplyTemplateAutomationsToSpaces = () => {
       const templateLists = templateListsResult.data;
       const templateAutomations = templateAutomationsResult.data as TemplateAutomation[] | null;
 
-      if (!templateAutomations || templateAutomations.length === 0) {
-        throw new Error('Este template não possui automações habilitadas.');
-      }
+      // Sem automações habilitadas não é erro: nada será criado, apenas os spaces são processados.
 
       // 2. Process each space
       for (const spaceId of spaceIds) {
@@ -1362,9 +1360,9 @@ export const useApplyTemplateAutomationsToScopes = () => {
       const templateLists = templateListsResult.data || [];
       const templateAutomations = (templateAutomationsResult.data || []) as unknown as TemplateAutomation[];
 
-      if (templateAutomations.length === 0) {
-        throw new Error('Este template não possui automações habilitadas. Use "Importar" na edição do modelo para trazer automações existentes.');
-      }
+      // Sem automações no modelo é permitido: a aplicação segue criando/validando a estrutura.
+
+
 
       // 0. Criar estrutura faltante nos spaces escolhidos
       const allTargetIds = [...targetIds];
