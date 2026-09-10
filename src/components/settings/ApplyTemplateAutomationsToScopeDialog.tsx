@@ -293,7 +293,7 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           </div>
         )}
 
-        {selectedIds.length > 0 && (
+        {selectedIds.length > 0 && enabledAutomationsCount > 0 && (
           <div className="p-2 bg-primary/10 border border-primary/20 rounded-md">
             <p className="text-xs text-center">
               Serão aplicadas aproximadamente{' '}
@@ -310,7 +310,6 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           <Button
             onClick={handleApply}
             disabled={
-              enabledAutomationsCount === 0 ||
               (selectedIds.length === 0 && selectedSpaceIds.length === 0) ||
               applyAutomations.isPending
             }
