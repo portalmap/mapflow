@@ -45,6 +45,8 @@ interface TemplateAutomationDialogProps {
   lists: SpaceTemplateList[];
   automation?: TemplateAutomation | null;
   workspaceId: string;
+  /** Escopos permitidos dentro do modelo. Padrão: todos (modelo de Space). */
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
 }
 
 type BuilderStep = 'trigger' | 'action';
@@ -58,8 +60,10 @@ export function TemplateAutomationDialog({
   folders,
   lists,
   automation,
-  workspaceId
+  workspaceId,
+  allowedScopes = ['space', 'folder', 'list'],
 }: TemplateAutomationDialogProps) {
+  const defaultScope = allowedScopes[0];
   const createAutomation = useCreateTemplateAutomation();
   const updateAutomation = useUpdateTemplateAutomation();
 
@@ -72,7 +76,7 @@ export function TemplateAutomationDialog({
   const [actionConfig, setActionConfig] = useState<Record<string, any>>({});
   const [conditions, setConditions] = useState<AutomationCondition[]>([]);
   const [actions, setActions] = useState<AutomationAction[]>([]);
-  const [scopeType, setScopeType] = useState<'space' | 'folder' | 'list'>('space');
+  const [scopeType, setScopeType] = useState<'space' | 'folder' | 'list'>(defaultScope);
   const [folderRefId, setFolderRefId] = useState<string | undefined>();
   const [listRefId, setListRefId] = useState<string | undefined>();
   const [activeStep, setActiveStep] = useState<BuilderStep>('trigger');
@@ -119,6 +123,18 @@ export function TemplateAutomationDialog({
     }
   }, [automation, open]);
 
+  // Modelos de Pasta/Lista têm um único destino possível: já pré-seleciona.
+  useEffect(() => {
+    if (!open) return;
+    if (scopeType === 'folder' && !folderRefId && folders.length === 1) {
+      setFolderRefId(folders[0].id);
+    }
+    if (scopeType === 'list' && !listRefId && lists.length === 1) {
+      setListRefId(lists[0].id);
+    }
+  }, [open, scopeType, folderRefId, listRefId, folders, lists]);
+
+
   const resetForm = () => {
     setName('');
     setSelectedTrigger(null);
@@ -127,7 +143,7 @@ export function TemplateAutomationDialog({
     setActionConfig({});
     setConditions([]);
     setActions([]);
-    setScopeType('space');
+    setScopeType(defaultScope);
     setFolderRefId(undefined);
     setListRefId(undefined);
     setActiveStep('trigger');
@@ -310,21 +326,23 @@ export function TemplateAutomationDialog({
                 <SelectValue placeholder="Onde aplicar" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="space">
-                  <div className="flex items-center gap-2">
-                    <LayoutGrid className="h-4 w-4" />
-                    <span>Todo o Space (do template)</span>
-                  </div>
-                </SelectItem>
-                {folders.length > 0 && (
-                  <SelectItem value="folder">
+                {allowedScopes.includes('space') && (
+                  <SelectItem value="space">
                     <div className="flex items-center gap-2">
-                      <Folder className="h-4 w-4" />
-                      <span>Pasta específica</span>
+                      <LayoutGrid className="h-4 w-4" />
+                      <span>Todo o Space (do template)</span>
                     </div>
                   </SelectItem>
                 )}
-                {lists.length > 0 && (
+                {allowedScopes.includes('folder') && folders.length > 0 && (
+                  <SelectItem value="folder">
+                    <div className="flex items-center gap-2">
+                      <Folder className="h-4 w-4" />
+                      <span>{allowedScopes.includes('space') ? 'Pasta específica' : 'Toda a pasta (do template)'}</span>
+                    </div>
+                  </SelectItem>
+                )}
+                {allowedScopes.includes('list') && lists.length > 0 && (
                   <SelectItem value="list">
                     <div className="flex items-center gap-2">
                       <List className="h-4 w-4" />

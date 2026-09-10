@@ -44,13 +44,19 @@ interface TemplateAutomationsSectionProps {
   folders: SpaceTemplateFolder[];
   lists: SpaceTemplateList[];
   workspaceId: string;
+  /** Escopos disponíveis: modelo de Space usa todos, pasta usa pasta/lista, lista usa só lista. */
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
+  /** Texto explicativo do card (varia por tipo de modelo). */
+  description?: string;
 }
 
 export function TemplateAutomationsSection({ 
   templateId, 
   folders, 
   lists,
-  workspaceId 
+  workspaceId,
+  allowedScopes = ['space', 'folder', 'list'],
+  description = 'Estas automações serão criadas automaticamente quando um Space for criado a partir deste template.',
 }: TemplateAutomationsSectionProps) {
   const { data: automations = [], isLoading } = useTemplateAutomations(templateId);
   const deleteAutomation = useDeleteTemplateAutomation();
@@ -125,7 +131,7 @@ export function TemplateAutomationsSection({
                 Automações do Template
               </CardTitle>
               <CardDescription className="mt-1">
-                Estas automações serão criadas automaticamente quando um Space for criado a partir deste template.
+                {description}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -153,7 +159,7 @@ export function TemplateAutomationsSection({
                 Nenhuma automação configurada neste template.
               </p>
               <p className="text-muted-foreground text-xs mt-1">
-                Sem automações aqui, não é possível aplicar em Spaces, pastas ou listas.
+                Você pode adicionar aqui, importar de algo existente, ou aplicar o modelo sem nenhuma automação.
               </p>
               <div className="flex items-center justify-center gap-2 mt-3">
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
@@ -265,6 +271,7 @@ export function TemplateAutomationsSection({
         lists={lists}
         automation={editingAutomation}
         workspaceId={workspaceId}
+        allowedScopes={allowedScopes}
       />
 
       <ImportTemplateAutomationsDialog
@@ -272,6 +279,7 @@ export function TemplateAutomationsSection({
         onOpenChange={setImportOpen}
         templateId={templateId}
         workspaceId={workspaceId}
+        allowedScopes={allowedScopes}
       />
 
 

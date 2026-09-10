@@ -210,9 +210,9 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              Este modelo ainda não tem automações habilitadas, então não há nada para aplicar. Abra a edição do
-              modelo e use <strong>Importar</strong> para trazer automações de um Space, pasta, lista ou de outro
-              modelo já configurado.
+              Este modelo não tem automações habilitadas. Você ainda pode aplicar: as{' '}
+              {labelPlural.toLowerCase()} do modelo que estiverem faltando serão criadas, sem nenhuma automação. Se
+              quiser trazer automações, abra a edição do modelo e use <strong>Importar</strong>.
             </AlertDescription>
           </Alert>
         )}
@@ -293,7 +293,7 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           </div>
         )}
 
-        {selectedIds.length > 0 && (
+        {selectedIds.length > 0 && enabledAutomationsCount > 0 && (
           <div className="p-2 bg-primary/10 border border-primary/20 rounded-md">
             <p className="text-xs text-center">
               Serão aplicadas aproximadamente{' '}
@@ -310,7 +310,6 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           <Button
             onClick={handleApply}
             disabled={
-              enabledAutomationsCount === 0 ||
               (selectedIds.length === 0 && selectedSpaceIds.length === 0) ||
               applyAutomations.isPending
             }

@@ -148,6 +148,14 @@ export const ApplyTemplateAutomationsDialog = ({
             <Badge variant="secondary">{enabledAutomationsCount}</Badge>
           </div>
 
+          {enabledAutomationsCount === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Este modelo não tem automações habilitadas. Aplicar não vai criar nenhuma automação nos spaces
+              selecionados.
+            </p>
+          )}
+
+
           {/* Space selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -191,7 +199,7 @@ export const ApplyTemplateAutomationsDialog = ({
           </div>
 
           {/* Summary */}
-          {selectedSpaceIds.length > 0 && (
+          {selectedSpaceIds.length > 0 && enabledAutomationsCount > 0 && (
             <div className="p-2 bg-primary/10 border border-primary/20 rounded-md">
               <p className="text-xs text-center">
                 Serão criadas aproximadamente{' '}

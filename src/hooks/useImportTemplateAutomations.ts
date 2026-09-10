@@ -16,6 +16,8 @@ type ImportSource =
 interface ImportParams {
   templateId: string;
   source: ImportSource;
+  /** Escopos válidos no modelo destino (modelos de pasta/lista não aceitam escopo de Space). */
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
 }
 
 interface TemplateStructure {
@@ -88,7 +90,11 @@ export const useImportTemplateAutomations = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ templateId, source }: ImportParams): Promise<ImportAutomationsResult> => {
+    mutationFn: async ({
+      templateId,
+      source,
+      allowedScopes = ['space', 'folder', 'list'],
+    }: ImportParams): Promise<ImportAutomationsResult> => {
       const result: ImportAutomationsResult = { imported: 0, skipped: 0, warnings: [] };
       const target = await loadTemplateStructure(templateId);
 
@@ -272,6 +278,22 @@ export const useImportTemplateAutomations = () => {
             list_ref_id: listRefId,
           });
           existingKeys.add(key);
+        }
+      }
+
+      // Modelos de pasta/lista não aceitam escopo de Space: converte para o escopo disponível.
+      if (!allowedScopes.includes('space')) {
+        for (const p of pending) {
+          if (allowedScopes.includes(p.scope_type)) continue;
+          if (allowedScopes.includes('folder') && target.folders.length > 0) {
+            p.scope_type = 'folder';
+            p.folder_ref_id = target.folders[0].id;
+            p.list_ref_id = null;
+          } else if (target.lists.length > 0) {
+            p.scope_type = 'list';
+            p.list_ref_id = p.list_ref_id ?? target.lists[0].id;
+            p.folder_ref_id = null;
+          }
         }
       }
 
