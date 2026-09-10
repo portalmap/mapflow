@@ -279,6 +279,7 @@ export function TemplateAutomationsSection({
         onOpenChange={setImportOpen}
         templateId={templateId}
         workspaceId={workspaceId}
+        allowedScopes={allowedScopes}
       />
 
 
