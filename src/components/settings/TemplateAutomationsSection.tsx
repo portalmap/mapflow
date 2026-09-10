@@ -44,13 +44,19 @@ interface TemplateAutomationsSectionProps {
   folders: SpaceTemplateFolder[];
   lists: SpaceTemplateList[];
   workspaceId: string;
+  /** Escopos disponíveis: modelo de Space usa todos, pasta usa pasta/lista, lista usa só lista. */
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
+  /** Texto explicativo do card (varia por tipo de modelo). */
+  description?: string;
 }
 
 export function TemplateAutomationsSection({ 
   templateId, 
   folders, 
   lists,
-  workspaceId 
+  workspaceId,
+  allowedScopes = ['space', 'folder', 'list'],
+  description = 'Estas automações serão criadas automaticamente quando um Space for criado a partir deste template.',
 }: TemplateAutomationsSectionProps) {
   const { data: automations = [], isLoading } = useTemplateAutomations(templateId);
   const deleteAutomation = useDeleteTemplateAutomation();
