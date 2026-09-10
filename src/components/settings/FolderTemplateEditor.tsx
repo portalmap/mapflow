@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useSpaceTemplates';
 import { useStatusTemplates } from '@/hooks/useStatusTemplates';
 import { TemplateTaskDialog } from './TemplateTaskDialog';
+import { TemplateAutomationsSection } from './TemplateAutomationsSection';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import {
   ArrowLeft, Plus, List, CheckSquare, X, Loader2,
@@ -384,6 +385,17 @@ export const FolderTemplateEditor = ({ templateId, onClose }: FolderTemplateEdit
           </div>
         </CardContent>
       </Card>
+
+      {templateId && activeWorkspace && (
+        <TemplateAutomationsSection
+          templateId={templateId}
+          folders={template?.folders || []}
+          lists={template?.lists || []}
+          workspaceId={activeWorkspace.id}
+          allowedScopes={['folder', 'list']}
+          description="Estas automações serão criadas automaticamente quando uma pasta for criada a partir deste template, e podem ser aplicadas em pastas já existentes."
+        />
+      )}
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancelar</Button>
