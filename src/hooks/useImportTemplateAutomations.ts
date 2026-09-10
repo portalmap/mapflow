@@ -16,6 +16,8 @@ type ImportSource =
 interface ImportParams {
   templateId: string;
   source: ImportSource;
+  /** Escopos válidos no modelo destino (modelos de pasta/lista não aceitam escopo de Space). */
+  allowedScopes?: Array<'space' | 'folder' | 'list'>;
 }
 
 interface TemplateStructure {
@@ -88,7 +90,11 @@ export const useImportTemplateAutomations = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ templateId, source }: ImportParams): Promise<ImportAutomationsResult> => {
+    mutationFn: async ({
+      templateId,
+      source,
+      allowedScopes = ['space', 'folder', 'list'],
+    }: ImportParams): Promise<ImportAutomationsResult> => {
       const result: ImportAutomationsResult = { imported: 0, skipped: 0, warnings: [] };
       const target = await loadTemplateStructure(templateId);
 
