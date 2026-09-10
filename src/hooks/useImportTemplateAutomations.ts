@@ -281,6 +281,22 @@ export const useImportTemplateAutomations = () => {
         }
       }
 
+      // Modelos de pasta/lista não aceitam escopo de Space: converte para o escopo disponível.
+      if (!allowedScopes.includes('space')) {
+        for (const p of pending) {
+          if (allowedScopes.includes(p.scope_type)) continue;
+          if (allowedScopes.includes('folder') && target.folders.length > 0) {
+            p.scope_type = 'folder';
+            p.folder_ref_id = target.folders[0].id;
+            p.list_ref_id = null;
+          } else if (target.lists.length > 0) {
+            p.scope_type = 'list';
+            p.list_ref_id = p.list_ref_id ?? target.lists[0].id;
+            p.folder_ref_id = null;
+          }
+        }
+      }
+
       if (pending.length > 0) {
         const { error } = await supabase.from('space_template_automations').insert(
           pending.map((p) => ({
