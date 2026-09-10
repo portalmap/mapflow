@@ -210,9 +210,9 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              Este modelo ainda não tem automações habilitadas, então não há nada para aplicar. Abra a edição do
-              modelo e use <strong>Importar</strong> para trazer automações de um Space, pasta, lista ou de outro
-              modelo já configurado.
+              Este modelo não tem automações habilitadas. Você ainda pode aplicar: as{' '}
+              {labelPlural.toLowerCase()} do modelo que estiverem faltando serão criadas, sem nenhuma automação. Se
+              quiser trazer automações, abra a edição do modelo e use <strong>Importar</strong>.
             </AlertDescription>
           </Alert>
         )}
