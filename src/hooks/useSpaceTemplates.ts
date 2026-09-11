@@ -1338,6 +1338,7 @@ export interface ApplyAutomationsToScopesResult {
   automationsCreated: number;
   automationsReplaced: number;
   structuresCreated: number;
+  tasksCreated: number;
   errors: string[];
 }
 
