@@ -1313,8 +1313,11 @@ export const useApplyTemplateAutomationsToSpaces = () => {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['automations'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       if (result.errors.length === 0) {
-        toast.success(`${result.automationsCreated} automações criadas em ${result.spacesProcessed} spaces!`);
+        toast.success(
+          `${result.automationsCreated} automações e ${result.tasksCreated} tarefas criadas em ${result.spacesProcessed} spaces!`
+        );
       } else {
         toast.warning(`${result.automationsCreated} automações criadas, mas houve ${result.errors.length} erros.`);
       }
