@@ -29,7 +29,7 @@ export const ApplyTemplateAutomationsDialog = ({
   const applyAutomations = useApplyTemplateAutomationsToSpaces();
 
   const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>([]);
-  const [result, setResult] = useState<{ spacesProcessed: number; automationsCreated: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ spacesProcessed: number; automationsCreated: number; tasksCreated: number; errors: string[] } | null>(null);
 
   // Filter spaces that match the template pattern (start with the template name)
   const matchingSpaces = useMemo(() => {
