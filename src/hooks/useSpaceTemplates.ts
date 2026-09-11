@@ -1611,6 +1611,21 @@ export const useApplyTemplateAutomationsToScopes = () => {
             }
           }
 
+          // 5. Criar as tarefas do modelo nas listas do destino
+          if (currentUser) {
+            const taskResult = await applyTemplateTasksToLists({
+              templateId,
+              workspaceId,
+              listIdMap,
+              statusIdMap,
+              createdByUserId: currentUser.id,
+            });
+            result.tasksCreated += taskResult.tasksCreated;
+            result.errors.push(
+              ...taskResult.errors.map(e => `${targetType === 'folder' ? 'Pasta' : 'Lista'} ${targetId}: ${e}`)
+            );
+          }
+
           result.targetsProcessed++;
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Erro desconhecido';
