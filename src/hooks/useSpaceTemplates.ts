@@ -1640,8 +1640,11 @@ export const useApplyTemplateAutomationsToScopes = () => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       queryClient.invalidateQueries({ queryKey: ['statuses'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       if (result.errors.length === 0) {
-        toast.success(`${result.automationsCreated} automações aplicadas em ${result.targetsProcessed} destino(s)!`);
+        toast.success(
+          `${result.automationsCreated} automações e ${result.tasksCreated} tarefas aplicadas em ${result.targetsProcessed} destino(s)!`
+        );
       } else {
         toast.warning(`${result.automationsCreated} automações aplicadas, mas houve ${result.errors.length} erro(s).`);
       }
