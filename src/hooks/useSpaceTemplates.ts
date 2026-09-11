@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database, Json } from '@/integrations/supabase/types';
 import { realMatchesTemplateName, buildRealName } from '@/lib/templateAutomationMapping';
+import { applyTemplateTasksToLists, type TemplateTaskRow } from '@/lib/templateTaskApply';
 
 
 type AutomationTrigger = Database['public']['Enums']['automation_trigger'];
@@ -846,22 +847,18 @@ export const useApplySpaceTemplate = () => {
         }
       }
 
-      // Create tasks
+      // Create tasks (módulo isolado de tarefas de modelo)
       if (tasksResult.data && tasksResult.data.length > 0) {
-        for (const task of tasksResult.data) {
-          const { error: taskError } = await supabase
-            .from('tasks')
-            .insert({
-              workspace_id: workspaceId,
-              list_id: listIdMap[task.list_ref_id],
-              title: task.title,
-              description: task.description,
-              priority: task.priority as 'low' | 'medium' | 'high' | 'urgent',
-              status_id: defaultStatus.id,
-              created_by_user_id: user.id,
-            });
-
-          if (taskError) throw taskError;
+        const taskResult = await applyTemplateTasksToLists({
+          templateId,
+          workspaceId,
+          listIdMap,
+          createdByUserId: user.id,
+          fallbackStatusId: defaultStatus.id,
+          tasks: tasksResult.data as unknown as TemplateTaskRow[],
+        });
+        if (taskResult.errors.length > 0) {
+          console.error('Erros ao criar tarefas do template:', taskResult.errors);
         }
       }
 
@@ -1126,6 +1123,7 @@ function remapAutomation(
 interface ApplyAutomationsResult {
   spacesProcessed: number;
   automationsCreated: number;
+  tasksCreated: number;
   errors: string[];
 }
 
@@ -1145,8 +1143,11 @@ export const useApplyTemplateAutomationsToSpaces = () => {
       const result: ApplyAutomationsResult = {
         spacesProcessed: 0,
         automationsCreated: 0,
+        tasksCreated: 0,
         errors: [],
       };
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
       // 1. Fetch template structure
       const [templateFoldersResult, templateListsResult, templateAutomationsResult] = await Promise.all([
@@ -1288,6 +1289,19 @@ export const useApplyTemplateAutomationsToSpaces = () => {
             }
           }
 
+          // 4. Criar as tarefas do modelo nas listas correspondentes
+          if (currentUser) {
+            const taskResult = await applyTemplateTasksToLists({
+              templateId,
+              workspaceId,
+              listIdMap,
+              statusIdMap,
+              createdByUserId: currentUser.id,
+            });
+            result.tasksCreated += taskResult.tasksCreated;
+            result.errors.push(...taskResult.errors.map(e => `Space ${spaceId}: ${e}`));
+          }
+
           result.spacesProcessed++;
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -1299,8 +1313,11 @@ export const useApplyTemplateAutomationsToSpaces = () => {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['automations'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       if (result.errors.length === 0) {
-        toast.success(`${result.automationsCreated} automações criadas em ${result.spacesProcessed} spaces!`);
+        toast.success(
+          `${result.automationsCreated} automações e ${result.tasksCreated} tarefas criadas em ${result.spacesProcessed} spaces!`
+        );
       } else {
         toast.warning(`${result.automationsCreated} automações criadas, mas houve ${result.errors.length} erros.`);
       }
@@ -1321,6 +1338,7 @@ export interface ApplyAutomationsToScopesResult {
   automationsCreated: number;
   automationsReplaced: number;
   structuresCreated: number;
+  tasksCreated: number;
   errors: string[];
 }
 
@@ -1347,8 +1365,11 @@ export const useApplyTemplateAutomationsToScopes = () => {
         automationsCreated: 0,
         automationsReplaced: 0,
         structuresCreated: 0,
+        tasksCreated: 0,
         errors: [],
       };
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
       const [templateFoldersResult, templateListsResult, templateAutomationsResult] = await Promise.all([
         supabase.from('space_template_folders').select('id, name').eq('template_id', templateId),
@@ -1590,6 +1611,21 @@ export const useApplyTemplateAutomationsToScopes = () => {
             }
           }
 
+          // 5. Criar as tarefas do modelo nas listas do destino
+          if (currentUser) {
+            const taskResult = await applyTemplateTasksToLists({
+              templateId,
+              workspaceId,
+              listIdMap,
+              statusIdMap,
+              createdByUserId: currentUser.id,
+            });
+            result.tasksCreated += taskResult.tasksCreated;
+            result.errors.push(
+              ...taskResult.errors.map(e => `${targetType === 'folder' ? 'Pasta' : 'Lista'} ${targetId}: ${e}`)
+            );
+          }
+
           result.targetsProcessed++;
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -1604,8 +1640,11 @@ export const useApplyTemplateAutomationsToScopes = () => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       queryClient.invalidateQueries({ queryKey: ['statuses'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       if (result.errors.length === 0) {
-        toast.success(`${result.automationsCreated} automações aplicadas em ${result.targetsProcessed} destino(s)!`);
+        toast.success(
+          `${result.automationsCreated} automações e ${result.tasksCreated} tarefas aplicadas em ${result.targetsProcessed} destino(s)!`
+        );
       } else {
         toast.warning(`${result.automationsCreated} automações aplicadas, mas houve ${result.errors.length} erro(s).`);
       }
