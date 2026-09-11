@@ -1289,6 +1289,19 @@ export const useApplyTemplateAutomationsToSpaces = () => {
             }
           }
 
+          // 4. Criar as tarefas do modelo nas listas correspondentes
+          if (currentUser) {
+            const taskResult = await applyTemplateTasksToLists({
+              templateId,
+              workspaceId,
+              listIdMap,
+              statusIdMap,
+              createdByUserId: currentUser.id,
+            });
+            result.tasksCreated += taskResult.tasksCreated;
+            result.errors.push(...taskResult.errors.map(e => `Space ${spaceId}: ${e}`));
+          }
+
           result.spacesProcessed++;
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
