@@ -146,7 +146,7 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
               <div className="p-3 bg-muted rounded-lg">
                 <div className="text-2xl font-bold">{result.targetsProcessed}</div>
                 <div className="text-xs text-muted-foreground">{labelPlural} processadas</div>
@@ -162,6 +162,10 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
               <div className="p-3 bg-muted rounded-lg">
                 <div className="text-2xl font-bold">{result.structuresCreated}</div>
                 <div className="text-xs text-muted-foreground">Pastas/listas criadas</div>
+              </div>
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="text-2xl font-bold text-primary">{result.tasksCreated}</div>
+                <div className="text-xs text-muted-foreground">Tarefas criadas</div>
               </div>
             </div>
 
