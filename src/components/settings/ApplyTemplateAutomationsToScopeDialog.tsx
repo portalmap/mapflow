@@ -47,6 +47,7 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
     automationsCreated: number;
     automationsReplaced: number;
     structuresCreated: number;
+    tasksCreated: number;
     errors: string[];
   } | null>(null);
 
