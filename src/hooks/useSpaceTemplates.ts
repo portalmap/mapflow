@@ -1365,8 +1365,11 @@ export const useApplyTemplateAutomationsToScopes = () => {
         automationsCreated: 0,
         automationsReplaced: 0,
         structuresCreated: 0,
+        tasksCreated: 0,
         errors: [],
       };
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
       const [templateFoldersResult, templateListsResult, templateAutomationsResult] = await Promise.all([
         supabase.from('space_template_folders').select('id, name').eq('template_id', templateId),
