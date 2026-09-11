@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database, Json } from '@/integrations/supabase/types';
 import { realMatchesTemplateName, buildRealName } from '@/lib/templateAutomationMapping';
+import { applyTemplateTasksToLists, type TemplateTaskRow } from '@/lib/templateTaskApply';
 
 
 type AutomationTrigger = Database['public']['Enums']['automation_trigger'];
@@ -846,22 +847,18 @@ export const useApplySpaceTemplate = () => {
         }
       }
 
-      // Create tasks
+      // Create tasks (módulo isolado de tarefas de modelo)
       if (tasksResult.data && tasksResult.data.length > 0) {
-        for (const task of tasksResult.data) {
-          const { error: taskError } = await supabase
-            .from('tasks')
-            .insert({
-              workspace_id: workspaceId,
-              list_id: listIdMap[task.list_ref_id],
-              title: task.title,
-              description: task.description,
-              priority: task.priority as 'low' | 'medium' | 'high' | 'urgent',
-              status_id: defaultStatus.id,
-              created_by_user_id: user.id,
-            });
-
-          if (taskError) throw taskError;
+        const taskResult = await applyTemplateTasksToLists({
+          templateId,
+          workspaceId,
+          listIdMap,
+          createdByUserId: user.id,
+          fallbackStatusId: defaultStatus.id,
+          tasks: tasksResult.data as unknown as TemplateTaskRow[],
+        });
+        if (taskResult.errors.length > 0) {
+          console.error('Erros ao criar tarefas do template:', taskResult.errors);
         }
       }
 
