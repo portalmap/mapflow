@@ -1123,6 +1123,7 @@ function remapAutomation(
 interface ApplyAutomationsResult {
   spacesProcessed: number;
   automationsCreated: number;
+  tasksCreated: number;
   errors: string[];
 }
 
@@ -1142,8 +1143,11 @@ export const useApplyTemplateAutomationsToSpaces = () => {
       const result: ApplyAutomationsResult = {
         spacesProcessed: 0,
         automationsCreated: 0,
+        tasksCreated: 0,
         errors: [],
       };
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
       // 1. Fetch template structure
       const [templateFoldersResult, templateListsResult, templateAutomationsResult] = await Promise.all([
