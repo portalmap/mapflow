@@ -92,7 +92,7 @@ export const ApplyTemplateAutomationsDialog = ({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4 text-center">
+            <div className="grid grid-cols-3 gap-3 text-center">
               <div className="p-3 bg-muted rounded-lg">
                 <div className="text-2xl font-bold">{result.spacesProcessed}</div>
                 <div className="text-xs text-muted-foreground">Spaces processados</div>
@@ -100,6 +100,10 @@ export const ApplyTemplateAutomationsDialog = ({
               <div className="p-3 bg-muted rounded-lg">
                 <div className="text-2xl font-bold text-primary">{result.automationsCreated}</div>
                 <div className="text-xs text-muted-foreground">Automações criadas</div>
+              </div>
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="text-2xl font-bold text-primary">{result.tasksCreated}</div>
+                <div className="text-xs text-muted-foreground">Tarefas criadas</div>
               </div>
             </div>
 
