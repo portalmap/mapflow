@@ -141,7 +141,7 @@ export const ApplyTemplateAutomationsDialog = ({
             Aplicar Automações em Spaces
           </DialogTitle>
           <DialogDescription>
-            Aplique as automações do template "{template?.name}" em spaces existentes que seguem o mesmo padrão.
+            Aplique as automações e as tarefas do template "{template?.name}" em spaces existentes que seguem o mesmo padrão.
           </DialogDescription>
         </DialogHeader>
 
@@ -154,7 +154,7 @@ export const ApplyTemplateAutomationsDialog = ({
 
           {enabledAutomationsCount === 0 && (
             <p className="text-xs text-muted-foreground">
-              Este modelo não tem automações habilitadas. Aplicar não vai criar nenhuma automação nos spaces
+              Este modelo não tem automações habilitadas. As tarefas do modelo continuam sendo criadas nos spaces
               selecionados.
             </p>
           )}
