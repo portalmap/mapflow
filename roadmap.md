@@ -13,6 +13,6 @@
 - [ ] Explicar ao usuário como liberar o histórico de participação no Google Workspace
 
 ## Templates e Automações
-- [ ] Separar Templates estruturais de modelos exclusivos de automação
-- [ ] Copiar as automações atuais para modelos independentes, separadas por tipo
-- [ ] Validar criação, edição, duplicação, exclusão e aplicação em massa
+- [x] Separar Templates estruturais de modelos exclusivos de automação
+- [x] Copiar as automações atuais para modelos independentes, separadas por tipo
+- [x] Validar criação, edição, duplicação, exclusão e aplicação em massa
