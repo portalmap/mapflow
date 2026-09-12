@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 export type AutomationTemplateTarget = 'space' | 'folder' | 'list';
 type AutomationTrigger = Database['public']['Enums']['automation_trigger'];
 type AutomationAction = Database['public']['Enums']['automation_action'];
+type Json = Database['public']['Tables']['automation_template_rules']['Insert']['action_config'];
 
 export interface AutomationTemplateModel {
   id: string;
@@ -388,7 +389,7 @@ export const useApplyAutomationTemplate = () => {
             description: rule.description,
             trigger: rule.trigger,
             action_type: rule.action_type,
-            action_config: config,
+            action_config: config as Json,
             scope_type: input.template.target_type,
             scope_id: targetId,
             enabled: true,
