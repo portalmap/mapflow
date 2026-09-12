@@ -1509,6 +1509,48 @@ export const useApplyTemplateAutomationsToScopes = () => {
               .select('id, name, folder_id')
               .eq('folder_id', targetId);
             realLists = data || [];
+
+            // 1b. Criar as listas do modelo que ainda não existem nesta pasta.
+            // As existentes são mantidas intactas (apenas casadas por nome).
+            const { data: folderRow } = await supabase
+              .from('folders')
+              .select('id, space_id, spaces:space_id(name)')
+              .eq('id', targetId)
+              .maybeSingle();
+
+            if (folderRow?.space_id) {
+              const spaceName =
+                (folderRow as unknown as { spaces?: { name?: string } | null }).spaces?.name || '';
+              for (const tl of templateLists) {
+                const existing = realLists.find(l => realMatchesTemplateName(tl.name, l.name));
+                if (existing) continue;
+                const { data: created, error } = await supabase
+                  .from('lists')
+                  .insert({
+                    workspace_id: workspaceId,
+                    space_id: folderRow.space_id,
+                    folder_id: targetId,
+                    name: buildRealName(tl.name, spaceName),
+                    status_template_id: tl.status_template_id ?? null,
+                    status_source: tl.status_template_id ? 'template' : 'inherit',
+                  })
+                  .select('id, name, folder_id')
+                  .single();
+                if (error || !created) {
+                  result.errors.push(`Lista "${tl.name}": ${error?.message || 'falha ao criar'}`);
+                  continue;
+                }
+                realLists.push(created);
+                result.structuresCreated++;
+                if (tl.status_template_id) {
+                  await supabase.rpc('sync_template_statuses_for_list', {
+                    p_list_id: created.id,
+                    p_template_id: tl.status_template_id,
+                    p_workspace_id: workspaceId,
+                  });
+                }
+              }
+            }
           } else {
             const { data } = await supabase
               .from('lists')
