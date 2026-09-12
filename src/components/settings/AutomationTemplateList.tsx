@@ -46,10 +46,7 @@ const TemplateRow = ({
   return (
     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-3">
-        <div
-          className="w-4 h-4 rounded-full"
-          className="h-4 w-4 rounded-full bg-primary"
-        />
+        <div className="h-4 w-4 rounded-full bg-primary" />
         <div>
           <p className="font-medium">{template.name}</p>
           <p className="text-sm text-muted-foreground">
