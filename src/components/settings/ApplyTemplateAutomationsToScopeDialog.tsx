@@ -198,7 +198,7 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Aplicar Automações em {labelPlural}
+             Aplicar Template em {labelPlural}
           </DialogTitle>
           <DialogDescription>
             Selecione as {labelPlural.toLowerCase()} que receberão as automações do template "{template?.name}".
@@ -325,7 +325,7 @@ export const ApplyTemplateAutomationsToScopeDialog = ({
                 Aplicando...
               </>
             ) : (
-              'Aplicar Automações'
+               'Aplicar Template'
             )}
           </Button>
         </DialogFooter>

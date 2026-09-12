@@ -138,7 +138,7 @@ export const ApplyTemplateAutomationsDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Aplicar Automações em Spaces
+             Aplicar Template em Spaces
           </DialogTitle>
           <DialogDescription>
             Aplique as automações e as tarefas do template "{template?.name}" em spaces existentes que seguem o mesmo padrão.
@@ -230,7 +230,7 @@ export const ApplyTemplateAutomationsDialog = ({
                 Aplicando...
               </>
             ) : (
-              'Aplicar Automações'
+               'Aplicar Template'
             )}
           </Button>
         </DialogFooter>

@@ -1,20 +1,24 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Zap, Send } from 'lucide-react';
+import { ArrowLeft, Zap, Send, Pencil } from 'lucide-react';
 import { AutomationTemplateList } from './AutomationTemplateList';
-import { TemplateAutomationsSection } from './TemplateAutomationsSection';
-import { ApplyTemplateAutomationsDialog } from './ApplyTemplateAutomationsDialog';
-import { useSpaceTemplate } from '@/hooks/useSpaceTemplates';
+import { AutomationTemplateRuleList } from './AutomationTemplateRuleList';
+import { ApplyAutomationTemplateDialog } from './ApplyAutomationTemplateDialog';
+import { AutomationTemplateFormDialog } from './AutomationTemplateFormDialog';
+import { type AutomationTemplateTarget, useAutomationTemplate } from '@/hooks/useAutomationTemplates';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const AutomationTemplateSettings = () => {
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [applyTemplateId, setApplyTemplateId] = useState<string | null>(null);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [editDetailsOpen, setEditDetailsOpen] = useState(false);
+  const [activeType, setActiveType] = useState<AutomationTemplateTarget>('space');
   const { activeWorkspace } = useWorkspace();
 
-  const { data: template, isLoading: templateLoading } = useSpaceTemplate(editingTemplateId || undefined);
+  const { data: template, isLoading: templateLoading } = useAutomationTemplate(editingTemplateId || undefined);
 
   if (editingTemplateId) {
     return (
@@ -33,9 +37,10 @@ export const AutomationTemplateSettings = () => {
             </h3>
           )}
           <div className="ml-auto">
-            <Button size="sm" variant="outline" onClick={() => setApplyTemplateId(editingTemplateId)}>
+            <Button size="sm" variant="ghost" onClick={() => setEditDetailsOpen(true)}><Pencil className="h-4 w-4 mr-1" />Dados do modelo</Button>
+            <Button size="sm" variant="outline" onClick={() => setApplyOpen(true)}>
               <Send className="h-4 w-4 mr-1" />
-              Aplicar em Spaces
+              Aplicar automações
             </Button>
           </div>
         </div>
@@ -46,22 +51,12 @@ export const AutomationTemplateSettings = () => {
               <Skeleton className="h-32 w-full" />
             </CardContent>
           </Card>
-        ) : template && activeWorkspace ? (
-          <TemplateAutomationsSection
-            templateId={editingTemplateId}
-            folders={(template.folders || []) as any}
-            lists={(template.lists || []) as any}
-            workspaceId={activeWorkspace.id}
-          />
+        ) : template ? (
+          <AutomationTemplateRuleList template={template} />
         ) : null}
 
-        {applyTemplateId && (
-          <ApplyTemplateAutomationsDialog
-            open={!!applyTemplateId}
-            onOpenChange={(open) => { if (!open) setApplyTemplateId(null); }}
-            templateId={applyTemplateId}
-          />
-        )}
+        {template && <ApplyAutomationTemplateDialog open={applyOpen} onOpenChange={setApplyOpen} template={template} />}
+        {template && <AutomationTemplateFormDialog open={editDetailsOpen} onOpenChange={setEditDetailsOpen} workspaceId={template.workspace_id} targetType={template.target_type} template={template} />}
       </div>
     );
   }
@@ -72,13 +67,11 @@ export const AutomationTemplateSettings = () => {
         <CardHeader>
           <CardTitle>Modelos de Automação</CardTitle>
           <CardDescription>
-            Gerencie automações nos templates de Space e aplique-as em massa nos Spaces existentes que seguem o mesmo padrão de estrutura.
+            Crie modelos exclusivos de automação e aplique somente as regras em vários destinos compatíveis.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AutomationTemplateList
-            onEdit={setEditingTemplateId}
-          />
+          {activeWorkspace ? <Tabs value={activeType} onValueChange={(value) => setActiveType(value as AutomationTemplateTarget)}><TabsList className="mb-4"><TabsTrigger value="space">Spaces</TabsTrigger><TabsTrigger value="folder">Pastas</TabsTrigger><TabsTrigger value="list">Listas</TabsTrigger></TabsList><TabsContent value="space"><AutomationTemplateList workspaceId={activeWorkspace.id} targetType="space" onEdit={setEditingTemplateId} /></TabsContent><TabsContent value="folder"><AutomationTemplateList workspaceId={activeWorkspace.id} targetType="folder" onEdit={setEditingTemplateId} /></TabsContent><TabsContent value="list"><AutomationTemplateList workspaceId={activeWorkspace.id} targetType="list" onEdit={setEditingTemplateId} /></TabsContent></Tabs> : null}
         </CardContent>
       </Card>
     </div>

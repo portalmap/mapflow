@@ -122,6 +122,107 @@ export type Database = {
           },
         ]
       }
+      automation_template_rules: {
+        Row: {
+          action_config: Json
+          action_type: Database["public"]["Enums"]["automation_action"]
+          automation_template_id: string
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          order_index: number
+          trigger: Database["public"]["Enums"]["automation_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          action_config?: Json
+          action_type: Database["public"]["Enums"]["automation_action"]
+          automation_template_id: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          order_index?: number
+          trigger?: Database["public"]["Enums"]["automation_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          action_config?: Json
+          action_type?: Database["public"]["Enums"]["automation_action"]
+          automation_template_id?: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          order_index?: number
+          trigger?: Database["public"]["Enums"]["automation_trigger"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_template_rules_automation_template_id_fkey"
+            columns: ["automation_template_id"]
+            isOneToOne: false
+            referencedRelation: "automation_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_templates: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by_user_id: string
+          description: string | null
+          id: string
+          name: string
+          source_space_template_id: string | null
+          target_type: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by_user_id: string
+          description?: string | null
+          id?: string
+          name: string
+          source_space_template_id?: string | null
+          target_type: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          description?: string | null
+          id?: string
+          name?: string
+          source_space_template_id?: string | null
+          target_type?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_templates_source_space_template_id_fkey"
+            columns: ["source_space_template_id"]
+            isOneToOne: false
+            referencedRelation: "space_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automations: {
         Row: {
           action_config: Json

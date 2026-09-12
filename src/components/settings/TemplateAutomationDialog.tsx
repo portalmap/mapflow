@@ -33,6 +33,12 @@ import {
   useUpdateTemplateAutomation,
   type TemplateAutomation 
 } from '@/hooks/useTemplateAutomations';
+import {
+  useCreateAutomationTemplateRule,
+  useUpdateAutomationTemplateRule,
+  type AutomationTemplateRule,
+  type AutomationTemplateTarget,
+} from '@/hooks/useAutomationTemplates';
 import type { SpaceTemplateFolder, SpaceTemplateList } from '@/hooks/useSpaceTemplates';
 import type { AutomationCondition } from '@/components/automations/advanced/ConditionRow';
 import { toast } from 'sonner';
@@ -47,6 +53,9 @@ interface TemplateAutomationDialogProps {
   workspaceId: string;
   /** Escopos permitidos dentro do modelo. Padrão: todos (modelo de Space). */
   allowedScopes?: Array<'space' | 'folder' | 'list'>;
+  storageMode?: 'structural' | 'standalone';
+  standaloneTargetType?: AutomationTemplateTarget;
+  standaloneRule?: AutomationTemplateRule | null;
 }
 
 type BuilderStep = 'trigger' | 'action';
@@ -62,12 +71,18 @@ export function TemplateAutomationDialog({
   automation,
   workspaceId,
   allowedScopes = ['space', 'folder', 'list'],
+  storageMode = 'structural',
+  standaloneTargetType,
+  standaloneRule,
 }: TemplateAutomationDialogProps) {
-  const defaultScope = allowedScopes[0];
+  const defaultScope = standaloneTargetType || allowedScopes[0];
   const createAutomation = useCreateTemplateAutomation();
   const updateAutomation = useUpdateTemplateAutomation();
+  const createStandaloneRule = useCreateAutomationTemplateRule();
+  const updateStandaloneRule = useUpdateAutomationTemplateRule();
+  const activeAutomation = storageMode === 'standalone' ? standaloneRule : automation;
 
-  const isEditMode = !!automation;
+  const isEditMode = !!activeAutomation;
 
   const [name, setName] = useState('');
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
@@ -85,20 +100,20 @@ export function TemplateAutomationDialog({
 
   // Populate fields when editing
   useEffect(() => {
-    if (automation && open) {
-      setName(automation.description || '');
-      setSelectedTrigger(automation.trigger);
-      setScopeType(automation.scope_type);
-      setFolderRefId(automation.folder_ref_id || undefined);
-      setListRefId(automation.list_ref_id || undefined);
+    if (activeAutomation && open) {
+      setName(activeAutomation.description || '');
+      setSelectedTrigger(activeAutomation.trigger);
+      setScopeType(storageMode === 'standalone' ? defaultScope : automation?.scope_type || defaultScope);
+      setFolderRefId(storageMode === 'structural' ? automation?.folder_ref_id || undefined : undefined);
+      setListRefId(storageMode === 'structural' ? automation?.list_ref_id || undefined : undefined);
       setActiveStep('trigger');
 
       // Handle legacy single action or new multiple actions
-      const config = automation.action_config || {};
+      const config = activeAutomation.action_config || {};
       
       // Reconstruct OR triggers
       const orTriggers = (config.or_triggers as string[] | undefined) || [];
-      setSelectedTriggers([automation.trigger, ...orTriggers]);
+      setSelectedTriggers([activeAutomation.trigger, ...orTriggers]);
 
       if (config.actions && Array.isArray(config.actions)) {
         setUseMultipleActions(true);
@@ -107,7 +122,7 @@ export function TemplateAutomationDialog({
         setActionConfig(config);
       } else {
         setUseMultipleActions(false);
-        setSelectedAction(automation.action_type);
+        setSelectedAction(activeAutomation.action_type);
         setActionConfig(config);
         setActions([]);
       }
@@ -121,7 +136,7 @@ export function TemplateAutomationDialog({
         setShowConditions(false);
       }
     }
-  }, [automation, open]);
+  }, [activeAutomation, automation, defaultScope, open, storageMode]);
 
   // Modelos de Pasta/Lista têm um único destino possível: já pré-seleciona.
   useEffect(() => {
@@ -192,11 +207,11 @@ export function TemplateAutomationDialog({
     }
 
     // Validate scope
-    if (scopeType === 'folder' && !folderRefId) {
+    if (storageMode === 'structural' && scopeType === 'folder' && !folderRefId) {
       toast.error('Selecione uma pasta');
       return;
     }
-    if (scopeType === 'list' && !listRefId) {
+    if (storageMode === 'structural' && scopeType === 'list' && !listRefId) {
       toast.error('Selecione uma lista');
       return;
     }
@@ -238,7 +253,26 @@ export function TemplateAutomationDialog({
     const description = name || `Quando ${trigger?.label} → ${useMultipleActions ? `${actions.length} ações` : primaryAction?.label}`;
 
     try {
-      if (isEditMode && automation) {
+      if (storageMode === 'standalone') {
+        if (isEditMode && standaloneRule) {
+          await updateStandaloneRule.mutateAsync({
+            id: standaloneRule.id,
+            automation_template_id: templateId,
+            description,
+            trigger: primaryTriggerId as any,
+            action_type: primaryActionType as any,
+            action_config: finalActionConfig,
+          });
+        } else {
+          await createStandaloneRule.mutateAsync({
+            automationTemplateId: templateId,
+            description,
+            trigger: primaryTriggerId as any,
+            actionType: primaryActionType as any,
+            actionConfig: finalActionConfig,
+          });
+        }
+      } else if (isEditMode && automation) {
         await updateAutomation.mutateAsync({
           id: automation.id,
           templateId,
@@ -269,7 +303,7 @@ export function TemplateAutomationDialog({
     }
   };
 
-  const isPending = createAutomation.isPending || updateAutomation.isPending;
+  const isPending = createAutomation.isPending || updateAutomation.isPending || createStandaloneRule.isPending || updateStandaloneRule.isPending;
 
   const selectedTriggersData = selectedTriggers.map(id => getTriggerById(id)).filter(Boolean);
   const selectedTriggerCategory = selectedTriggers.length > 0 ? getCategoryByTriggerId(selectedTriggers[0]) : null;
@@ -314,7 +348,7 @@ export function TemplateAutomationDialog({
           </div>
 
           {/* Template Scope Selector */}
-          <div className="space-y-2">
+          {storageMode === 'structural' ? <div className="space-y-2">
             <Label className="text-xs">Escopo dentro do Template</Label>
             
             <Select value={scopeType} onValueChange={(v) => {
@@ -390,7 +424,11 @@ export function TemplateAutomationDialog({
                 </SelectContent>
               </Select>
             )}
-          </div>
+          </div> : (
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              Esta regra será aplicada em todas as {standaloneTargetType === 'space' ? 'Spaces' : standaloneTargetType === 'folder' ? 'Pastas' : 'Listas'} selecionadas.
+            </div>
+          )}
 
           {/* Trigger → Action Flow */}
           <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-start">
@@ -491,11 +529,11 @@ export function TemplateAutomationDialog({
                         });
                       }}
                       workspaceId={workspaceId}
-                      scopeType={scopeType === 'space' ? 'workspace' : scopeType}
+                      scopeType={storageMode === 'standalone' ? scopeType : scopeType === 'space' ? 'workspace' : scopeType}
                       scopeId={scopeType === 'list' ? listRefId : scopeType === 'folder' ? folderRefId : undefined}
                       config={actionConfig}
                       onConfigChange={setActionConfig}
-                      isTemplateContext={true}
+                      isTemplateContext={storageMode === 'structural'}
                       templateLists={lists.map(l => ({
                         id: l.id,
                         name: l.name,
@@ -597,7 +635,7 @@ export function TemplateAutomationDialog({
                   onActionsChange={setActions}
                   scopeType={scopeType}
                   scopeId={listRefId || folderRefId}
-                  isTemplateContext={true}
+                  isTemplateContext={storageMode === 'structural'}
                   templateLists={lists.map(l => ({ id: l.id, name: l.name, folder_ref_id: l.folder_ref_id, status_template_id: l.status_template_id }))}
                   templateFolders={folders.map(f => ({ id: f.id, name: f.name }))}
                 />
@@ -646,7 +684,7 @@ export function TemplateAutomationDialog({
                       onConfigChange={setActionConfig}
                       scopeType={scopeType}
                       scopeId={listRefId || folderRefId}
-                      isTemplateContext={true}
+                      isTemplateContext={storageMode === 'structural'}
                       templateLists={lists.map(l => ({ id: l.id, name: l.name, folder_ref_id: l.folder_ref_id, status_template_id: l.status_template_id }))}
                       templateFolders={folders.map(f => ({ id: f.id, name: f.name }))}
                     />

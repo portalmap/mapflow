@@ -8,23 +8,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { useSpaceTemplates, useDuplicateSpaceTemplate } from '@/hooks/useSpaceTemplates';
-import { useTemplateAutomations } from '@/hooks/useTemplateAutomations';
-import { ApplyTemplateAutomationsDialog } from './ApplyTemplateAutomationsDialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Loader2, MoreHorizontal, Pencil, Zap, Send, Copy, Type } from 'lucide-react';
+  type AutomationTemplateModel,
+  type AutomationTemplateTarget,
+  useAutomationTemplateRules,
+  useAutomationTemplates,
+  useDeleteAutomationTemplate,
+  useDuplicateAutomationTemplate,
+} from '@/hooks/useAutomationTemplates';
+import { ApplyAutomationTemplateDialog } from './ApplyAutomationTemplateDialog';
+import { AutomationTemplateFormDialog } from './AutomationTemplateFormDialog';
+import { Loader2, MoreHorizontal, Pencil, Zap, Send, Copy, Trash2 } from 'lucide-react';
 
 interface AutomationTemplateListProps {
+  workspaceId: string;
+  targetType: AutomationTemplateTarget;
   onEdit: (templateId: string) => void;
 }
 
@@ -33,26 +32,21 @@ const TemplateRow = ({
   onEdit,
   onApply,
   onDuplicate,
-  onRename,
+  onDelete,
 }: {
-  template: { id: string; name: string; color: string | null };
+  template: AutomationTemplateModel;
   onEdit: (id: string) => void;
-  onApply: (id: string) => void;
+  onApply: (template: AutomationTemplateModel) => void;
   onDuplicate: (id: string) => void;
-  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
 }) => {
-  const { data: automations = [] } = useTemplateAutomations(template.id);
-  const enabledCount = automations.filter(a => a.enabled).length;
-
-  if (automations.length === 0) return null;
+  const { data: automations = [] } = useAutomationTemplateRules(template.id);
+  const enabledCount = automations.filter((automation) => automation.enabled).length;
 
   return (
     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-3">
-        <div
-          className="w-4 h-4 rounded-full"
-          style={{ backgroundColor: template.color || '#6366f1' }}
-        />
+        <div className="h-4 w-4 rounded-full bg-primary" />
         <div>
           <p className="font-medium">{template.name}</p>
           <p className="text-sm text-muted-foreground">
@@ -77,23 +71,21 @@ const TemplateRow = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onRename(template.id, template.name)}>
-              <Type className="h-4 w-4 mr-2" />
-              Renomear
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(template.id)}>
               <Pencil className="h-4 w-4 mr-2" />
-              Editar Automações
+              Editar modelo
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onDuplicate(template.id)}>
               <Copy className="h-4 w-4 mr-2" />
               Duplicar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onApply(template.id)}>
+            <DropdownMenuItem onClick={() => onApply(template)}>
               <Send className="h-4 w-4 mr-2" />
-              Aplicar em Spaces
+              Aplicar automações
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(template.id)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -101,36 +93,16 @@ const TemplateRow = ({
   );
 };
 
-export const AutomationTemplateList = ({ onEdit }: AutomationTemplateListProps) => {
-  const { data: templates, isLoading } = useSpaceTemplates();
-  const [applyTemplateId, setApplyTemplateId] = useState<string | null>(null);
-  const [renamingTemplate, setRenamingTemplate] = useState<{ id: string; name: string } | null>(null);
-  const [newName, setNewName] = useState('');
-  const duplicateTemplate = useDuplicateSpaceTemplate();
-  const queryClient = useQueryClient();
+export const AutomationTemplateList = ({ workspaceId, targetType, onEdit }: AutomationTemplateListProps) => {
+  const { data: templates = [], isLoading } = useAutomationTemplates(workspaceId, targetType);
+  const [applyTemplate, setApplyTemplate] = useState<AutomationTemplateModel | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const duplicateTemplate = useDuplicateAutomationTemplate();
+  const deleteTemplate = useDeleteAutomationTemplate();
 
   const handleDuplicate = (templateId: string) => {
     duplicateTemplate.mutate(templateId);
-  };
-
-  const handleRename = (id: string, name: string) => {
-    setRenamingTemplate({ id, name });
-    setNewName(name);
-  };
-
-  const handleSaveRename = async () => {
-    if (!renamingTemplate || !newName.trim()) return;
-    const { error } = await supabase
-      .from('space_templates')
-      .update({ name: newName.trim() })
-      .eq('id', renamingTemplate.id);
-    if (error) {
-      toast.error('Erro ao renomear template');
-    } else {
-      toast.success('Template renomeado');
-      queryClient.invalidateQueries({ queryKey: ['space-templates'] });
-    }
-    setRenamingTemplate(null);
   };
 
   if (isLoading) {
@@ -141,62 +113,26 @@ export const AutomationTemplateList = ({ onEdit }: AutomationTemplateListProps) 
     );
   }
 
-  if (!templates || templates.length === 0) {
-    return (
-      <div className="text-center py-8 border border-dashed rounded-lg">
-        <Zap className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-        <p className="text-muted-foreground">
-          Nenhum template com automações encontrado.
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Adicione automações nos seus templates de Space na aba "Templates".
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
+      <div className="flex items-center justify-between"><h3 className="font-medium">Modelos de {targetType === 'space' ? 'Spaces' : targetType === 'folder' ? 'Pastas' : 'Listas'}</h3><Button size="sm" onClick={() => setCreateOpen(true)}>Criar modelo</Button></div>
+      {templates.length === 0 ? <div className="rounded-lg border border-dashed py-10 text-center"><Zap className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="text-sm text-muted-foreground">Nenhum modelo exclusivo criado para este tipo.</p></div> : <div className="space-y-2">
         {templates.map((template) => (
           <TemplateRow
             key={template.id}
             template={template}
             onEdit={onEdit}
-            onApply={setApplyTemplateId}
+            onApply={setApplyTemplate}
             onDuplicate={handleDuplicate}
-            onRename={handleRename}
+            onDelete={setDeleteId}
           />
         ))}
-      </div>
+      </div>}
 
-      {applyTemplateId && (
-        <ApplyTemplateAutomationsDialog
-          open={!!applyTemplateId}
-          onOpenChange={(open) => {
-            if (!open) setApplyTemplateId(null);
-          }}
-          templateId={applyTemplateId}
-        />
-      )}
+      {applyTemplate && <ApplyAutomationTemplateDialog open={!!applyTemplate} onOpenChange={(open) => { if (!open) setApplyTemplate(null); }} template={applyTemplate} />}
+      <AutomationTemplateFormDialog open={createOpen} onOpenChange={setCreateOpen} workspaceId={workspaceId} targetType={targetType} onSaved={(template) => onEdit(template.id)} />
 
-      <Dialog open={!!renamingTemplate} onOpenChange={(open) => { if (!open) setRenamingTemplate(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Renomear Template</DialogTitle>
-          </DialogHeader>
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nome do template"
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRename(); }}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenamingTemplate(null)}>Cancelar</Button>
-            <Button onClick={handleSaveRename} disabled={!newName.trim()}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir modelo?</AlertDialogTitle><AlertDialogDescription>O modelo e suas regras serão removidos. As automações já aplicadas continuarão nos destinos.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => { if (deleteId) deleteTemplate.mutate(deleteId); setDeleteId(null); }}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );
 };
