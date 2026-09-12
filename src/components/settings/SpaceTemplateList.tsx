@@ -159,10 +159,10 @@ export const SpaceTemplateList = ({ onEdit, onCreate, type = 'space' }: SpaceTem
                     <DropdownMenuItem onClick={() => setApplyAutomationsTemplateId(template.id)}>
                       <Zap className="h-4 w-4 mr-2" />
                       {type === 'space'
-                        ? 'Aplicar automações em Spaces'
+                        ? 'Aplicar Template em Spaces'
                         : type === 'folder'
-                          ? 'Aplicar automações em Pastas'
-                          : 'Aplicar automações em Listas'}
+                          ? 'Aplicar Template em Pastas'
+                          : 'Aplicar Template em Listas'}
                     </DropdownMenuItem>
                   </>
                   <DropdownMenuSeparator />
