@@ -113,7 +113,7 @@ export function TemplateAutomationDialog({
       
       // Reconstruct OR triggers
       const orTriggers = (config.or_triggers as string[] | undefined) || [];
-      setSelectedTriggers([automation.trigger, ...orTriggers]);
+      setSelectedTriggers([activeAutomation.trigger, ...orTriggers]);
 
       if (config.actions && Array.isArray(config.actions)) {
         setUseMultipleActions(true);
