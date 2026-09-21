@@ -1,39 +1,46 @@
-# Agenda: cada pessoa vê apenas a sua própria agenda
+# Agenda: sem conta Google conectada, nada do Google aparece
 
 ## O que está acontecendo
 
-Hoje a Agenda mostra dois grupos de compromissos: os da sua própria conta e também os
-compromissos de outras pessoas nos quais você aparece como convidado. Quando você sincroniza
-sua conta do Google, os convidados do compromisso são reconhecidos como usuários do MAP Flow,
-e a partir daí esses usuários passam a ver o seu compromisso na Agenda deles — mesmo sem terem
-conectado nenhuma conta do Google.
+Confirmei no banco: hoje existe **uma única** conexão Google ativa, a do `portal@assessoriamap.com.br`
+(criada às 14:46, ainda sem sincronizar). O `victorborges@assessoriamap.com.br` **não tem mais
+conexão Google**, mas continua com 2.509 compromissos vindos do Google salvos aqui, sincronizados
+antes da conexão dele deixar de existir. É por isso que o "Jantar com Família" ainda aparece na
+agenda dele: são sobras da sincronização anterior, não um dado vivo.
+
+O cruzamento por convidado (aparecer na agenda de quem foi convidado) continua como está — o
+problema é só a sobra de quem não está conectado.
 
 ## O que vou fazer
 
-1. A Agenda passa a mostrar **somente** os compromissos da própria pessoa: os que ela criou aqui
-   e os que vieram da conta do Google dela.
-2. Quem não conectou a conta do Google fica com a Agenda vazia (ou só com o que criou aqui) —
-   não vê mais compromisso de ninguém, mesmo tendo sido convidado.
-3. Quem conectou a conta do Google continua vendo normalmente os convites recebidos, porque eles
-   já vêm pela sincronização da própria agenda.
-4. Confirmar presença (sim/não/talvez) continua funcionando nos compromissos que aparecem na
-   agenda da própria pessoa.
+1. **Limpar as sobras agora.** Apagar aqui os compromissos vindos do Google de qualquer pessoa que
+   não tenha conexão Google ativa (hoje, os do victorborges). Nada é apagado no Google.
+2. **Regra permanente.** Sempre que a Agenda for aberta e a pessoa não tiver conta Google conectada,
+   os compromissos dela vindos do Google são removidos daqui automaticamente — igual ao que já
+   acontece ao desconectar. Sobra apenas o que ela criou dentro do MAP Flow.
+3. **Proteção na tela.** Enquanto a conexão estiver ausente, a Agenda não exibe nada vindo do Google,
+   mesmo que ainda exista algum registro antigo.
+4. **Reconectar resolve.** Ao conectar a conta Google de novo e sincronizar, tudo volta a aparecer,
+   sem duplicar.
+5. **Convites continuam.** Quem realmente está na lista de convidados segue vendo o compromisso,
+   conectado ou não — isso não muda.
 
 ## Detalhes técnicos
 
-- `src/hooks/useAgenda.ts` (`useAgendaEvents`): adicionar `.eq('user_id', user.id)` na consulta de
-  `calendar_events`.
-- Banco: remover a política de leitura `Guests can view invited events` em `calendar_events`
-  (a de dono, `Owner manages own events`, permanece). Manter `calendar_event_guests` acessível ao
-  dono do evento para exibir a lista de convidados; a política `Guest can view own invitation`
-  deixa de dar acesso ao evento em si.
-- Nada muda na sincronização com o Google (`googleCalendarSync.server.ts` já lê apenas a agenda
-  principal da própria conta), nem no vínculo de convidado por e-mail, que segue sendo usado para
-  mostrar nomes e fotos.
-- Nenhum outro módulo é afetado (tarefas, chat, Gestão, notificações).
+- Limpeza inicial: `DELETE` em `calendar_events` (e filhos `calendar_event_guests`,
+  `calendar_event_reminders`) onde `source = 'google'` e o `user_id` não tem linha em
+  `app_user_connections` para `connector_id = 'google_calendar'`.
+- `src/lib/google-calendar.functions.ts`: extrair a limpeza já usada em
+  `disconnectGoogleCalendarAccount` para um helper (`purgeGoogleEventsForUser`) e chamá-lo em
+  `getMyGoogleCalendarStatus` / `syncMyGoogleCalendar` quando `getConnectionKeyForUser` retornar
+  `null`, removendo também a linha órfã em `calendar_google_accounts`.
+- `src/hooks/useAgenda.ts` + `src/page-views/Agenda.tsx`: com status desconectado, filtrar
+  `source === 'google'` dos eventos próprios (mantendo os eventos em que a pessoa é convidada).
+- Nada muda na sincronização em si (`googleCalendarSync.server.ts` continua lendo só a agenda
+  principal da própria conta) nem em outros módulos.
 
 ## Verificação
 
-1. Entrar com um usuário sem Google conectado: Agenda sem compromissos de outras pessoas.
-2. Entrar com a conta conectada: a semana bate com a semana no Google, incluindo convites recebidos.
-3. Abrir um compromisso com convidados: lista de convidados e RSVP continuam funcionando.
+1. Entrar como victorborges sem reconectar: Agenda sem os compromissos do Google.
+2. Reconectar e sincronizar: a semana volta a bater com a semana no Google, sem duplicatas.
+3. Entrar como portal: após sincronizar, aparece a agenda própria dele.
