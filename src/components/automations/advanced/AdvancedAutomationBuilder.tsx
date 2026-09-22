@@ -72,6 +72,10 @@ export const AdvancedAutomationBuilder = ({
       // Reconstruct OR triggers
       const orTriggers = (config.or_triggers as string[] | undefined) || [];
       setSelectedTriggers([automation.trigger, ...orTriggers]);
+      const savedLogics = (config.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
+      setTriggerLogics(
+        Array.from({ length: orTriggers.length }, (_, i) => savedLogics[i] || 'OR')
+      );
       
       if (config.actions && Array.isArray(config.actions)) {
         setUseMultipleActions(true);
