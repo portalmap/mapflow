@@ -403,6 +403,16 @@ export const AdvancedAutomationBuilder = ({
                           {conditions.length > 0 && (
                             <Badge variant="secondary" className="text-xs">
                               {conditions.length}
+                              {conditions.length > 1 && (
+                                <>
+                                  {' · '}
+                                  {conditions.slice(0, -1).every(c => c.logic === 'AND')
+                                    ? 'todas'
+                                    : conditions.slice(0, -1).every(c => c.logic === 'OR')
+                                      ? 'qualquer'
+                                      : 'personalizado'}
+                                </>
+                              )}
                             </Badge>
                           )}
                         </div>
