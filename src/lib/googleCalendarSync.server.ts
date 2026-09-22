@@ -794,7 +794,34 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       }
 
       const toAdd = [...desired.entries()].filter(([key]) => !seen.has(key)).map(([, row]) => row);
-      if (toAdd.length) await admin.from('calendar_event_guests').insert(toAdd);
+      if (toAdd.length) {
+        // Lote com conflito tratado; se o lote falhar (índices únicos por e-mail
+        // ou por usuário), grava linha por linha para não perder a página toda.
+        const { error: batchError } = await admin
+          .from('calendar_event_guests')
+          .upsert(toAdd, { onConflict: 'event_id,email', ignoreDuplicates: false });
+        if (batchError) {
+          for (const row of toAdd) {
+            const { error: rowError } = await admin
+              .from('calendar_event_guests')
+              .upsert(row, { onConflict: 'event_id,email', ignoreDuplicates: false });
+            if (!rowError) continue;
+            // Já existe linha do mesmo usuário (índice event_id,user_id): atualiza.
+            const { error: updateError } = await admin
+              .from('calendar_event_guests')
+              .update(row)
+              .eq('event_id', row.event_id)
+              .eq('email', row.email);
+            if (updateError) {
+              console.error('[agenda] convidado não gravado', {
+                event_id: row.event_id,
+                email: row.email,
+                error: rowError.message,
+              });
+            }
+          }
+        }
+      }
     }
   };
 
