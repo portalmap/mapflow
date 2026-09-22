@@ -146,6 +146,14 @@ export const AdvancedAutomationBuilder = ({
       const action = getActionById(selectedAction);
       if (action?.configFields) {
         for (const field of action.configFields) {
+          if (field.type === 'date_config') {
+            const dateError = validateDateConfig(actionConfig);
+            if (dateError) {
+              toast.error(dateError);
+              return;
+            }
+            continue;
+          }
           if (field.required && !actionConfig[field.name]) {
             toast.error(`Preencha o campo: ${field.label}`);
             return;
