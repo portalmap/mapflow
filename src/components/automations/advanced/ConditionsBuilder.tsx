@@ -39,13 +39,6 @@ export const ConditionsBuilder = ({
     onConditionsChange(conditions.filter(c => c.id !== id));
   };
 
-  const handleToggleLogic = (id: string) => {
-    onConditionsChange(
-      conditions.map(c => 
-        c.id === id ? { ...c, logic: c.logic === 'AND' ? 'OR' : 'AND' } : c
-      )
-    );
-  };
 
   const connectorLogics = conditions.slice(0, -1).map(c => c.logic);
   const globalLogic: 'AND' | 'OR' | 'MIXED' =
