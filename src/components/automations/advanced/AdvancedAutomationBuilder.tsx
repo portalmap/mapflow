@@ -11,7 +11,7 @@ import { useCreateAutomation, useUpdateAutomation, type Automation } from '@/hoo
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { TriggerSelector } from './TriggerSelector';
 import { ActionSelector } from './ActionSelector';
-import { ActionConfigForm } from './ActionConfigForm';
+import { ActionConfigForm, validateDateConfig } from './ActionConfigForm';
 // TriggerConfigForm is now inline in TriggerSelector
 import { ConditionsBuilder } from './ConditionsBuilder';
 import { MultiActionSelector, type AutomationAction } from './MultiActionSelector';
@@ -146,6 +146,14 @@ export const AdvancedAutomationBuilder = ({
       const action = getActionById(selectedAction);
       if (action?.configFields) {
         for (const field of action.configFields) {
+          if (field.type === 'date_config') {
+            const dateError = validateDateConfig(actionConfig);
+            if (dateError) {
+              toast.error(dateError);
+              return;
+            }
+            continue;
+          }
           if (field.required && !actionConfig[field.name]) {
             toast.error(`Preencha o campo: ${field.label}`);
             return;

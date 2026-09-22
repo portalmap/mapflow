@@ -12,6 +12,51 @@ import { List, Folder } from 'lucide-react';
 import { useStatusesForScope } from '@/hooks/useStatuses';
 import { UserMultiSelect } from './UserMultiSelect';
 
+/**
+ * Valida a configuração de data (campo tipo `date_config`).
+ * Retorna a primeira mensagem de erro encontrada, ou null se estiver válida.
+ */
+export const validateDateConfig = (config: Record<string, any> = {}): string | null => {
+  const dateType = config?.date_type;
+  if (!dateType) return 'Selecione o tipo de data';
+
+  if (dateType === 'days_after_trigger') {
+    const days = Number(config.days_count);
+    if (config.days_count === undefined || config.days_count === null || config.days_count === '' || Number.isNaN(days) || days < 0) {
+      return 'Informe a quantidade de dias';
+    }
+    return null;
+  }
+
+  if (dateType === 'specific_day') {
+    const day = Number(config.day_of_month);
+    if (!day || Number.isNaN(day) || day < 1 || day > 31) return 'Informe o dia do mês (1 a 31)';
+    return null;
+  }
+
+  if (dateType === 'recurring') {
+    if (!config.recurrence_type) return 'Selecione a frequência da recorrência';
+    if (config.recurrence_type === 'weekly' || config.recurrence_type === 'biweekly') {
+      if (!config.day_of_week && config.day_of_week !== 0) return 'Selecione o dia da semana';
+    }
+    if (config.recurrence_type === 'monthly' || config.recurrence_type === 'quarterly') {
+      if (!config.monthly_mode) return 'Selecione como calcular o dia do mês';
+      if (config.monthly_mode === 'specific_day') {
+        const day = Number(config.day_of_month);
+        if (!day || Number.isNaN(day) || day < 1 || day > 31) return 'Informe o dia do mês (1 a 31)';
+      }
+      if (config.monthly_mode === 'weekday_ordinal') {
+        if (!config.weekday_ordinal) return 'Selecione a ordem do dia da semana';
+        if (!config.weekday) return 'Selecione o dia da semana';
+      }
+    }
+    return null;
+  }
+
+  // first_day_of_month / last_day_of_month não exigem campos extras
+  return null;
+};
+
 interface TemplateList {
   id: string;
   name: string;

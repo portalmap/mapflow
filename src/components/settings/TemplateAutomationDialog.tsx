@@ -22,7 +22,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ArrowRight, Zap, Target, X, LayoutGrid, Folder, List, Filter } from 'lucide-react';
 import { TriggerSelector } from '@/components/automations/advanced/TriggerSelector';
 import { ActionSelector } from '@/components/automations/advanced/ActionSelector';
-import { ActionConfigForm } from '@/components/automations/advanced/ActionConfigForm';
+import { ActionConfigForm, validateDateConfig } from '@/components/automations/advanced/ActionConfigForm';
 // TriggerConfigForm is now inline in TriggerSelector
 import { ConditionsBuilder } from '@/components/automations/advanced/ConditionsBuilder';
 import { MultiActionSelector, type AutomationAction } from '@/components/automations/advanced/MultiActionSelector';
@@ -198,6 +198,14 @@ export function TemplateAutomationDialog({
       const action = getActionById(selectedAction);
       if (action?.configFields) {
         for (const field of action.configFields) {
+          if (field.type === 'date_config') {
+            const dateError = validateDateConfig(actionConfig);
+            if (dateError) {
+              toast.error(dateError);
+              return;
+            }
+            continue;
+          }
           if (field.required && !actionConfig[field.name]) {
             toast.error(`Preencha o campo: ${field.label}`);
             return;
