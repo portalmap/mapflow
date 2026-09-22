@@ -50,7 +50,7 @@ export function AssigneeFilterPanel({
   };
 
   return (
-    <div className="w-72 border-l bg-background h-full flex flex-col">
+    <div className="absolute right-0 top-0 z-30 h-full w-72 max-w-[85vw] shrink-0 border-l bg-background shadow-lg flex flex-col lg:static lg:z-auto lg:max-w-none lg:shadow-none">
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-medium">Responsáveis</h3>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
