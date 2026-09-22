@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 export interface TaskActivity {
   id: string;
@@ -293,7 +294,8 @@ const getPriorityLabel = (priority: string | null): string => {
 const formatDate = (dateStr: string | null): string => {
   if (!dateStr) return '';
   try {
-    return new Date(dateStr).toLocaleDateString('pt-BR');
+    const parsed = parseLocalDate(dateStr);
+    return parsed ? parsed.toLocaleDateString('pt-BR') : dateStr;
   } catch {
     return dateStr;
   }
