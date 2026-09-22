@@ -182,10 +182,14 @@ export const AdvancedAutomationBuilder = ({
     };
     
     // Add OR triggers if any
+    const normalizedLogics: ('AND' | 'OR')[] = orTriggerIds.map((_, i) => triggerLogics[i] || 'OR');
+
     if (orTriggerIds.length > 0) {
       finalActionConfig.or_triggers = orTriggerIds;
+      finalActionConfig.trigger_logics = normalizedLogics;
     } else {
       delete finalActionConfig.or_triggers;
+      delete finalActionConfig.trigger_logics;
     }
     
     // Add conditions if any
