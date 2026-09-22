@@ -241,8 +241,10 @@ export function TemplateAutomationDialog({
     // Add OR triggers if any
     if (orTriggerIds.length > 0) {
       finalActionConfig.or_triggers = orTriggerIds;
+      finalActionConfig.trigger_logics = orTriggerIds.map((_, i) => triggerLogics[i] || 'OR');
     } else {
       delete finalActionConfig.or_triggers;
+      delete finalActionConfig.trigger_logics;
     }
 
     // Add conditions if any
