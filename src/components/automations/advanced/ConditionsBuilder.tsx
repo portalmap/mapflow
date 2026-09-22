@@ -46,11 +46,53 @@ export const ConditionsBuilder = ({
     );
   };
 
+  const connectorLogics = conditions.slice(0, -1).map(c => c.logic);
+  const globalLogic: 'AND' | 'OR' | 'MIXED' =
+    connectorLogics.length === 0
+      ? 'AND'
+      : connectorLogics.every(l => l === 'AND')
+        ? 'AND'
+        : connectorLogics.every(l => l === 'OR')
+          ? 'OR'
+          : 'MIXED';
+
+  const handleSetAllLogic = (logic: 'AND' | 'OR') => {
+    onConditionsChange(conditions.map(c => ({ ...c, logic })));
+  };
+
+  const handleSetLogic = (id: string, logic: 'AND' | 'OR') => {
+    onConditionsChange(conditions.map(c => (c.id === id ? { ...c, logic } : c)));
+  };
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Filter className="h-3.5 w-3.5 text-muted-foreground" />
         <Label className="text-xs font-medium">E se essa condição for verdadeira:</Label>
+
+        {conditions.length > 1 && (
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant={globalLogic === 'AND' ? 'default' : 'outline'}
+              size="sm"
+              className="h-6 text-[10px] px-2"
+              onClick={() => handleSetAllLogic('AND')}
+            >
+              Atender TODAS
+            </Button>
+            <Button
+              variant={globalLogic === 'OR' ? 'default' : 'outline'}
+              size="sm"
+              className="h-6 text-[10px] px-2"
+              onClick={() => handleSetAllLogic('OR')}
+            >
+              Atender QUALQUER
+            </Button>
+            {globalLogic === 'MIXED' && (
+              <span className="text-[10px] text-muted-foreground">Personalizado</span>
+            )}
+          </div>
+        )}
       </div>
 
       {conditions.length === 0 ? (
@@ -67,24 +109,43 @@ export const ConditionsBuilder = ({
                 onUpdate={(updates) => handleUpdateCondition(condition.id, updates)}
                 onDelete={() => handleDeleteCondition(condition.id)}
               />
-              
+
               {/* Logic connector between conditions */}
               {index < conditions.length - 1 && (
-                <div className="flex items-center justify-center py-0.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-5 text-[10px] px-2 font-medium"
-                    onClick={() => handleToggleLogic(condition.id)}
-                  >
-                    {condition.logic === 'AND' ? 'E' : 'OU'}
-                  </Button>
+                <div className="flex items-center justify-center py-1">
+                  <div className="inline-flex rounded-md border border-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => handleSetLogic(condition.id, 'AND')}
+                      className={cn(
+                        'h-5 px-2.5 text-[10px] font-medium transition-colors',
+                        condition.logic === 'AND'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background text-muted-foreground hover:bg-accent'
+                      )}
+                    >
+                      E
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetLogic(condition.id, 'OR')}
+                      className={cn(
+                        'h-5 px-2.5 text-[10px] font-medium transition-colors border-l border-border',
+                        condition.logic === 'OR'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background text-muted-foreground hover:bg-accent'
+                      )}
+                    >
+                      OU
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           ))}
         </div>
       )}
+
 
       <Button
         variant="outline"
