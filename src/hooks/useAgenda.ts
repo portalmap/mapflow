@@ -3,6 +3,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { supabase } from '@/integrations/supabase/client';
 import { respondCalendarInvite } from '@/lib/google-calendar.functions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMyGoogleStatus } from '@/hooks/useGoogleCalendar';
 import { toast } from 'sonner';
 
 /** Tipos de item da agenda, espelhando o Google Agenda. */
@@ -104,22 +105,30 @@ export interface EventInput {
 
 const AGENDA_KEY = 'agenda-events';
 
+/**
+ * Com a conta de e-mail conectada, a Agenda mostra só os compromissos da própria
+ * agenda (o Google já traz os convites). Sem conexão, vale o cruzamento: aparecem
+ * também os compromissos em que a pessoa foi citada como convidada.
+ */
 export function useAgendaEvents(rangeStart: Date, rangeEnd: Date) {
   const { user } = useAuth();
+  const { data: googleStatus, isPending: statusPending } = useMyGoogleStatus();
+  const connected = !!googleStatus?.connected;
   const startIso = rangeStart.toISOString();
   const endIso = rangeEnd.toISOString();
 
   return useQuery({
-    queryKey: [AGENDA_KEY, user?.id, startIso, endIso],
-    enabled: !!user?.id,
+    queryKey: [AGENDA_KEY, user?.id, startIso, endIso, connected],
+    enabled: !!user?.id && !statusPending,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('calendar_events')
         .select('*')
         .is('deleted_at', null)
         .lt('starts_at', endIso)
-        .gt('ends_at', startIso)
-        .order('starts_at');
+        .gt('ends_at', startIso);
+      if (connected) query = query.eq('user_id', user!.id);
+      const { data, error } = await query.order('starts_at');
       if (error) throw error;
       return (data ?? []) as unknown as CalendarEvent[];
     },

@@ -47,8 +47,6 @@ import {
 } from '@/hooks/useAgenda';
 import { useAgendaCalendars } from '@/hooks/useAgendaCalendars';
 import { useFullscreen } from '@/hooks/useFullscreen';
-import { useMyGoogleStatus } from '@/hooks/useGoogleCalendar';
-import { useAuth } from '@/contexts/AuthContext';
 
 
 type ViewMode = 'month' | 'week' | 'day';
@@ -83,20 +81,9 @@ export default function Agenda() {
   }, [view, reference]);
 
   const { data: events = [], isLoading } = useAgendaEvents(rangeStart, rangeEnd);
-  const { data: googleStatus } = useMyGoogleStatus();
-  const { user } = useAuth();
-
-  // Sem conta Google conectada, nada vindo do Google da própria pessoa é exibido
-  // (sobras de uma conexão anterior). Convites de outras pessoas continuam visíveis.
-  const ownedEvents = useMemo(() => {
-    if (googleStatus?.connected !== false) return events;
-    return events.filter(
-      (e) => e.source !== 'google' || (user?.id ? e.user_id !== user.id : false),
-    );
-  }, [events, googleStatus?.connected, user?.id]);
 
   const { calendars, hidden, toggle, showAll, showOnlyMine, visibleEvents } =
-    useAgendaCalendars(ownedEvents);
+    useAgendaCalendars(events);
 
 
   const goPrev = () => {
