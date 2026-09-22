@@ -3809,6 +3809,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_task_creation_automations: {
+        Args: { p_task_id: string }
+        Returns: undefined
+      }
       archive_space: { Args: { p_space_id: string }; Returns: undefined }
       calc_delivery_pct: {
         Args: { p_due_date: string; p_reference: string; p_start_date: string }
