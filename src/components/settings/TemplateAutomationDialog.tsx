@@ -87,6 +87,7 @@ export function TemplateAutomationDialog({
   const [name, setName] = useState('');
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
+  const [triggerLogics, setTriggerLogics] = useState<('AND' | 'OR')[]>([]);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [actionConfig, setActionConfig] = useState<Record<string, any>>({});
   const [conditions, setConditions] = useState<AutomationCondition[]>([]);
