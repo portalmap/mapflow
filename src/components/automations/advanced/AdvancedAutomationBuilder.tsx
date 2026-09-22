@@ -306,11 +306,17 @@ export const AdvancedAutomationBuilder = ({
                       return (
                       <div key={triggerData!.id}>
                         {idx > 0 && (
-                          <div className="flex items-center justify-center my-1">
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold text-primary border-primary/30">
-                              OU
-                            </Badge>
-                          </div>
+                          <TriggerLogicToggle
+                            value={triggerLogics[idx - 1] || 'OR'}
+                            onChange={(logic) => {
+                              setTriggerLogics(prev => {
+                                const next = [...prev];
+                                while (next.length < selectedTriggers.length - 1) next.push('OR');
+                                next[idx - 1] = logic;
+                                return next;
+                              });
+                            }}
+                          />
                         )}
                         <div className="flex items-center gap-2 p-2 bg-accent rounded-lg">
                           <TriggerIcon className="h-4 w-4 text-primary" />
