@@ -81,8 +81,20 @@ export default function Agenda() {
   }, [view, reference]);
 
   const { data: events = [], isLoading } = useAgendaEvents(rangeStart, rangeEnd);
+  const { data: googleStatus } = useMyGoogleStatus();
+  const { user } = useAuth();
+
+  // Sem conta Google conectada, nada vindo do Google da própria pessoa é exibido
+  // (sobras de uma conexão anterior). Convites de outras pessoas continuam visíveis.
+  const ownedEvents = useMemo(() => {
+    if (googleStatus?.connected !== false) return events;
+    return events.filter(
+      (e) => e.source !== 'google' || (user?.id ? e.user_id !== user.id : false),
+    );
+  }, [events, googleStatus?.connected, user?.id]);
+
   const { calendars, hidden, toggle, showAll, showOnlyMine, visibleEvents } =
-    useAgendaCalendars(events);
+    useAgendaCalendars(ownedEvents);
 
 
   const goPrev = () => {
