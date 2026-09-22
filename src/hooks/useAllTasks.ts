@@ -110,39 +110,8 @@ export function useAllTasksWithAssignees(workspaceId: string | undefined) {
     queryFn: async () => {
       if (!workspaceId) return [];
 
-      // Fetch tasks
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
-        .select(`
-          id,
-          title,
-          description,
-          priority,
-          due_date,
-          start_date,
-          completed_at,
-          created_at,
-          updated_at,
-          workspace_id,
-          list_id,
-          parent_id,
-          status:statuses(id, name, color),
-          assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
-          list:lists(
-            id,
-            name,
-            space_id,
-            folder_id,
-            space:spaces(id, name),
-            folder:folders(id, name)
-          )
-        `)
-        .eq('workspace_id', workspaceId)
-        .is('archived_at', null)
-        .is('parent_id', null)
-        .order('created_at', { ascending: false });
-
-      if (tasksError) throw tasksError;
+      // Fetch tasks (paginated)
+      const tasks = await fetchWorkspaceTasks(workspaceId);
 
       // Fetch all assignees for these tasks (batched to avoid URL length limits)
       const taskIds = tasks?.map(t => t.id) || [];
