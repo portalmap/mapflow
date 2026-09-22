@@ -111,6 +111,7 @@ export const AdvancedAutomationBuilder = ({
     setName('');
     setSelectedTrigger(null);
     setSelectedTriggers([]);
+    setTriggerLogics([]);
     setSelectedAction(null);
     setActionConfig({});
     setConditions([]);
