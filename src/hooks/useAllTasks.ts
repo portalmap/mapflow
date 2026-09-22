@@ -40,44 +40,64 @@ export interface AllTask {
   } | null;
 }
 
+const TASKS_PAGE_SIZE = 1000;
+
+const TASKS_SELECT = `
+  id,
+  title,
+  description,
+  priority,
+  due_date,
+  start_date,
+  completed_at,
+  created_at,
+  updated_at,
+  workspace_id,
+  list_id,
+  parent_id,
+  status:statuses(id, name, color),
+  assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
+  list:lists(
+    id,
+    name,
+    space_id,
+    folder_id,
+    space:spaces(id, name),
+    folder:folders(id, name)
+  )
+`;
+
+/**
+ * Fetches every workspace task, paginating because Supabase caps each
+ * response at 1000 rows.
+ */
+async function fetchWorkspaceTasks(workspaceId: string) {
+  const all: any[] = [];
+
+  for (let offset = 0; ; offset += TASKS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select(TASKS_SELECT)
+      .eq('workspace_id', workspaceId)
+      .is('archived_at', null)
+      .is('parent_id', null)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + TASKS_PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (data?.length) all.push(...data);
+    if (!data || data.length < TASKS_PAGE_SIZE) break;
+  }
+
+  return all;
+}
+
 export function useAllTasks(workspaceId: string | undefined) {
   return useQuery({
     queryKey: ['all-tasks', workspaceId],
     queryFn: async () => {
       if (!workspaceId) return [];
-
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          id,
-          title,
-          description,
-          priority,
-          due_date,
-          start_date,
-          completed_at,
-          created_at,
-          updated_at,
-          workspace_id,
-          list_id,
-          parent_id,
-          status:statuses(id, name, color),
-          assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
-          list:lists(
-            id,
-            name,
-            space_id,
-            folder_id,
-            space:spaces(id, name),
-            folder:folders(id, name)
-          )
-        `)
-        .eq('workspace_id', workspaceId)
-        .is('archived_at', null)
-        .is('parent_id', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await fetchWorkspaceTasks(workspaceId);
       return data as unknown as AllTask[];
     },
     enabled: !!workspaceId,
