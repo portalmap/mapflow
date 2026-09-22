@@ -752,10 +752,15 @@ export const executeStatusChangeAutomations = async (
     }
 
     // Filter to only automations whose trigger or or_triggers include 'on_status_changed'
+    recordTaskEvent(info.taskId, 'on_status_changed');
+    const occurredEvents = getRecentTaskEvents(info.taskId);
+
     const statusAutomations = automations.filter(a => {
       const config = a.action_config as Record<string, any> | null;
       const orTriggers = (config?.or_triggers as string[] | undefined) || [];
-      return a.trigger === 'on_status_changed' || orTriggers.includes('on_status_changed');
+      const matches = a.trigger === 'on_status_changed' || orTriggers.includes('on_status_changed');
+      if (!matches) return false;
+      return triggerLogicSatisfied(config, a.trigger, 'on_status_changed', occurredEvents);
     });
 
     // 4. Filter automations by matching scopes
