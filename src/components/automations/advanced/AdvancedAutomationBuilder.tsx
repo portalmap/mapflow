@@ -20,6 +20,7 @@ import { getActionById } from './actionCategories';
 import { ScopeSelector } from '../ScopeSelector';
 import { toast } from 'sonner';
 import type { AutomationCondition } from './ConditionRow';
+import { TriggerLogicToggle } from './TriggerLogicToggle';
 
 interface AdvancedAutomationBuilderProps {
   open: boolean;
@@ -46,6 +47,8 @@ export const AdvancedAutomationBuilder = ({
   const [name, setName] = useState('');
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
+  // Conector entre os gatilhos: triggerLogics[i] liga o gatilho i com o i+1
+  const [triggerLogics, setTriggerLogics] = useState<('AND' | 'OR')[]>([]);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [actionConfig, setActionConfig] = useState<Record<string, any>>({});
   const [conditions, setConditions] = useState<AutomationCondition[]>([]);
@@ -69,6 +72,10 @@ export const AdvancedAutomationBuilder = ({
       // Reconstruct OR triggers
       const orTriggers = (config.or_triggers as string[] | undefined) || [];
       setSelectedTriggers([automation.trigger, ...orTriggers]);
+      const savedLogics = (config.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
+      setTriggerLogics(
+        Array.from({ length: orTriggers.length }, (_, i) => savedLogics[i] || 'OR')
+      );
       
       if (config.actions && Array.isArray(config.actions)) {
         setUseMultipleActions(true);
@@ -104,6 +111,7 @@ export const AdvancedAutomationBuilder = ({
     setName('');
     setSelectedTrigger(null);
     setSelectedTriggers([]);
+    setTriggerLogics([]);
     setSelectedAction(null);
     setActionConfig({});
     setConditions([]);
@@ -174,10 +182,14 @@ export const AdvancedAutomationBuilder = ({
     };
     
     // Add OR triggers if any
+    const normalizedLogics: ('AND' | 'OR')[] = orTriggerIds.map((_, i) => triggerLogics[i] || 'OR');
+
     if (orTriggerIds.length > 0) {
       finalActionConfig.or_triggers = orTriggerIds;
+      finalActionConfig.trigger_logics = normalizedLogics;
     } else {
       delete finalActionConfig.or_triggers;
+      delete finalActionConfig.trigger_logics;
     }
     
     // Add conditions if any
@@ -196,8 +208,11 @@ export const AdvancedAutomationBuilder = ({
       : selectedAction;
 
     const primaryAction = getActionById(primaryActionType || '');
-    const triggerLabels = selectedTriggers.map(id => getTriggerById(id)?.label).filter(Boolean);
-    const triggerDesc = triggerLabels.length > 1 ? triggerLabels.join(' OU ') : (trigger?.label || '');
+    const triggerLabels = selectedTriggers.map(id => getTriggerById(id)?.label || '').filter(Boolean);
+    const triggerDesc = triggerLabels.length > 1
+      ? triggerLabels.reduce((acc, label, i) =>
+          i === 0 ? label : `${acc} ${normalizedLogics[i - 1] === 'AND' ? 'E' : 'OU'} ${label}`, '')
+      : (trigger?.label || '');
     const description = name || `Quando ${triggerDesc} → ${useMultipleActions ? `${actions.length} ações` : primaryAction?.label}`;
 
     try {
@@ -306,11 +321,17 @@ export const AdvancedAutomationBuilder = ({
                       return (
                       <div key={triggerData!.id}>
                         {idx > 0 && (
-                          <div className="flex items-center justify-center my-1">
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold text-primary border-primary/30">
-                              OU
-                            </Badge>
-                          </div>
+                          <TriggerLogicToggle
+                            value={triggerLogics[idx - 1] || 'OR'}
+                            onChange={(logic) => {
+                              setTriggerLogics(prev => {
+                                const next = [...prev];
+                                while (next.length < selectedTriggers.length - 1) next.push('OR');
+                                next[idx - 1] = logic;
+                                return next;
+                              });
+                            }}
+                          />
                         )}
                         <div className="flex items-center gap-2 p-2 bg-accent rounded-lg">
                           <TriggerIcon className="h-4 w-4 text-primary" />

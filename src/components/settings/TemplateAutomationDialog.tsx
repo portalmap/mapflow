@@ -25,6 +25,7 @@ import { ActionSelector } from '@/components/automations/advanced/ActionSelector
 import { ActionConfigForm, validateDateConfig } from '@/components/automations/advanced/ActionConfigForm';
 // TriggerConfigForm is now inline in TriggerSelector
 import { ConditionsBuilder } from '@/components/automations/advanced/ConditionsBuilder';
+import { TriggerLogicToggle } from '@/components/automations/advanced/TriggerLogicToggle';
 import { MultiActionSelector, type AutomationAction } from '@/components/automations/advanced/MultiActionSelector';
 import { getTriggerById, getCategoryByTriggerId } from '@/components/automations/advanced/triggerCategories';
 import { getActionById } from '@/components/automations/advanced/actionCategories';
@@ -87,6 +88,7 @@ export function TemplateAutomationDialog({
   const [name, setName] = useState('');
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
+  const [triggerLogics, setTriggerLogics] = useState<('AND' | 'OR')[]>([]);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [actionConfig, setActionConfig] = useState<Record<string, any>>({});
   const [conditions, setConditions] = useState<AutomationCondition[]>([]);
@@ -114,6 +116,8 @@ export function TemplateAutomationDialog({
       // Reconstruct OR triggers
       const orTriggers = (config.or_triggers as string[] | undefined) || [];
       setSelectedTriggers([activeAutomation.trigger, ...orTriggers]);
+      const savedLogics = (config.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
+      setTriggerLogics(Array.from({ length: orTriggers.length }, (_, i) => savedLogics[i] || 'OR'));
 
       if (config.actions && Array.isArray(config.actions)) {
         setUseMultipleActions(true);
@@ -238,8 +242,10 @@ export function TemplateAutomationDialog({
     // Add OR triggers if any
     if (orTriggerIds.length > 0) {
       finalActionConfig.or_triggers = orTriggerIds;
+      finalActionConfig.trigger_logics = orTriggerIds.map((_, i) => triggerLogics[i] || 'OR');
     } else {
       delete finalActionConfig.or_triggers;
+      delete finalActionConfig.trigger_logics;
     }
 
     // Add conditions if any
@@ -466,11 +472,17 @@ export function TemplateAutomationDialog({
                       return (
                       <div key={triggerData!.id}>
                         {idx > 0 && (
-                          <div className="flex items-center justify-center my-1">
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold text-primary border-primary/30">
-                              OU
-                            </Badge>
-                          </div>
+                          <TriggerLogicToggle
+                            value={triggerLogics[idx - 1] || 'OR'}
+                            onChange={(logic) => {
+                              setTriggerLogics(prev => {
+                                const next = [...prev];
+                                while (next.length < selectedTriggers.length - 1) next.push('OR');
+                                next[idx - 1] = logic;
+                                return next;
+                              });
+                            }}
+                          />
                         )}
                         <div className="flex items-center gap-2 p-1.5 bg-accent rounded-md">
                           <TriggerIcon className="h-3.5 w-3.5 text-primary" />

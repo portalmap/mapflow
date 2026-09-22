@@ -18,8 +18,20 @@ interface AutomationExecutionResult {
 
 interface AutomationCondition {
   id: string;
-  field: 'tag' | 'priority' | 'assignee' | 'due_date' | 'has_subtasks';
-  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set' | 'any_of' | 'none_of';
+  field: string;
+  operator:
+    | 'equals'
+    | 'not_equals'
+    | 'contains'
+    | 'not_contains'
+    | 'is_set'
+    | 'is_not_set'
+    | 'any_of'
+    | 'none_of'
+    | 'before'
+    | 'after'
+    | 'greater_than'
+    | 'less_than';
   value: string | string[];
   logic: 'AND' | 'OR';
 }
@@ -28,10 +40,80 @@ interface TaskData {
   id: string;
   priority: string;
   due_date: string | null;
+  start_date: string | null;
+  status_id: string;
+  title: string;
+  format: string | null;
+  timeSpent: number;
   tags: string[];
   assignees: string[];
   hasSubtasks: boolean;
+  allSubtasksResolved: boolean;
+  allChecklistsResolved: boolean;
+  hasComments: boolean;
+  /** Eventos ocorridos na mesma alteração (para condições/gatilhos de evento) */
+  events: string[];
 }
+
+/**
+ * Registro curto de eventos por tarefa, usado para avaliar gatilhos ligados por
+ * "E" (todos precisam acontecer na mesma alteração) e condições de evento.
+ */
+const EVENT_WINDOW_MS = 8000;
+const recentTaskEvents = new Map<string, { event: string; at: number }[]>();
+
+export const recordTaskEvent = (taskId: string, event: string) => {
+  const now = Date.now();
+  const list = (recentTaskEvents.get(taskId) || []).filter(e => now - e.at < EVENT_WINDOW_MS);
+  list.push({ event, at: now });
+  recentTaskEvents.set(taskId, list);
+};
+
+const getRecentTaskEvents = (taskId: string): string[] => {
+  const now = Date.now();
+  const list = (recentTaskEvents.get(taskId) || []).filter(e => now - e.at < EVENT_WINDOW_MS);
+  recentTaskEvents.set(taskId, list);
+  return Array.from(new Set(list.map(e => e.event)));
+};
+
+/**
+ * Verifica a lógica E/OU entre gatilhos.
+ * action_config.trigger_logics guarda o conector entre o gatilho i e i+1
+ * (na ordem [trigger, ...or_triggers]). Ausente = tudo OU (comportamento antigo).
+ */
+const triggerLogicSatisfied = (
+  config: Record<string, any> | null,
+  primaryTrigger: string,
+  firedEvent: string,
+  occurredEvents: string[]
+): boolean => {
+  const triggers = [primaryTrigger, ...((config?.or_triggers as string[] | undefined) || [])];
+  if (triggers.length <= 1) return true;
+
+  const logics = (config?.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
+  if (logics.length === 0 || logics.every(l => l !== 'AND')) return true;
+
+  // Quebra os gatilhos em grupos: dentro do grupo = E, entre grupos = OU
+  const groups: string[][] = [];
+  let current: string[] = [triggers[0]];
+  for (let i = 1; i < triggers.length; i++) {
+    if (logics[i - 1] === 'AND') {
+      current.push(triggers[i]);
+    } else {
+      groups.push(current);
+      current = [triggers[i]];
+    }
+  }
+  groups.push(current);
+
+  const groupsWithEvent = groups.filter(g => g.includes(firedEvent));
+  if (groupsWithEvent.length === 0) return false;
+
+  // Basta que um dos grupos que contém o evento disparado esteja completo
+  return groupsWithEvent.some(group =>
+    group.every(t => t === firedEvent || occurredEvents.includes(t))
+  );
+};
 
 // Helper para registrar atividade de automação
 const logAutomationActivity = async (
@@ -61,12 +143,105 @@ const logAutomationActivity = async (
 };
 
 /**
+ * Mapeia campos legados e campos espelhados dos gatilhos para a mesma avaliação.
+ */
+const FIELD_ALIASES: Record<string, string> = {
+  on_status_changed: 'status',
+  on_priority_changed: 'priority',
+  on_tag_added: 'tag',
+  on_tag_removed: 'tag',
+  on_assignee_added: 'assignee',
+  on_assignee_removed: 'assignee',
+  on_name_changed: 'title',
+  on_task_type_changed: 'format',
+  on_due_date_changed: 'due_date',
+  on_due_date_arrives: 'due_date',
+  on_date_before_after: 'due_date',
+  on_custom_date_arrives: 'due_date',
+  on_start_date_changed: 'start_date',
+  on_start_date_arrives: 'start_date',
+  on_time_tracked: 'time_spent',
+  on_all_subtasks_resolved: 'all_subtasks_resolved',
+  on_all_checklists_resolved: 'all_checklists_resolved',
+  on_comment_added: 'has_comments',
+};
+
+const compareText = (
+  operator: AutomationCondition['operator'],
+  actual: string | null,
+  values: string[]
+): boolean => {
+  const text = (actual || '').toLowerCase();
+  const vals = values.map(v => String(v).toLowerCase()).filter(Boolean);
+  switch (operator) {
+    case 'is_set':
+      return !!actual;
+    case 'is_not_set':
+      return !actual;
+    case 'contains':
+      return vals.some(v => text.includes(v));
+    case 'not_contains':
+      return !vals.some(v => text.includes(v));
+    case 'equals':
+      return vals.includes(text);
+    case 'not_equals':
+      return !vals.includes(text);
+    default:
+      return true;
+  }
+};
+
+const compareDate = (
+  operator: AutomationCondition['operator'],
+  actual: string | null,
+  values: string[]
+): boolean => {
+  switch (operator) {
+    case 'is_set':
+      return !!actual;
+    case 'is_not_set':
+      return !actual;
+    case 'before':
+      return !!actual && !!values[0] && actual < values[0];
+    case 'after':
+      return !!actual && !!values[0] && actual > values[0];
+    default:
+      return true;
+  }
+};
+
+const compareNumber = (
+  operator: AutomationCondition['operator'],
+  actual: number,
+  values: string[]
+): boolean => {
+  const target = Number(values[0]);
+  if (Number.isNaN(target)) return true;
+  switch (operator) {
+    case 'greater_than':
+      return actual > target;
+    case 'less_than':
+      return actual < target;
+    case 'equals':
+      return actual === target;
+    default:
+      return true;
+  }
+};
+
+const compareBoolean = (operator: AutomationCondition['operator'], actual: boolean): boolean => {
+  if (operator === 'is_not_set') return !actual;
+  return actual;
+};
+
+/**
  * Evaluate a single condition against task data
  */
 const evaluateSingleCondition = (condition: AutomationCondition, taskData: TaskData): boolean => {
   const values = Array.isArray(condition.value) ? condition.value : [condition.value].filter(Boolean);
+  const field = FIELD_ALIASES[condition.field] || condition.field;
 
-  switch (condition.field) {
+  switch (field) {
     case 'priority':
       switch (condition.operator) {
         case 'equals':
@@ -79,14 +254,24 @@ const evaluateSingleCondition = (condition: AutomationCondition, taskData: TaskD
           return true;
       }
 
+    case 'status':
+      switch (condition.operator) {
+        case 'any_of':
+        case 'equals':
+          return values.includes(taskData.status_id);
+        case 'none_of':
+        case 'not_equals':
+          return !values.includes(taskData.status_id);
+        default:
+          return true;
+      }
+
     case 'tag':
       switch (condition.operator) {
         case 'contains':
-          return values.some(v => taskData.tags.includes(v));
-        case 'not_contains':
-          return !values.some(v => taskData.tags.includes(v));
         case 'any_of':
           return values.some(v => taskData.tags.includes(v));
+        case 'not_contains':
         case 'none_of':
           return !values.some(v => taskData.tags.includes(v));
         default:
@@ -108,51 +293,66 @@ const evaluateSingleCondition = (condition: AutomationCondition, taskData: TaskD
       }
 
     case 'due_date':
-      switch (condition.operator) {
-        case 'is_set':
-          return !!taskData.due_date;
-        case 'is_not_set':
-          return !taskData.due_date;
-        default:
-          return true;
-      }
+      return compareDate(condition.operator, taskData.due_date, values);
+
+    case 'start_date':
+      return compareDate(condition.operator, taskData.start_date, values);
+
+    case 'title':
+      return compareText(condition.operator, taskData.title, values);
+
+    case 'format':
+      return compareText(condition.operator, taskData.format, values);
+
+    case 'time_spent':
+      return compareNumber(condition.operator, taskData.timeSpent, values);
 
     case 'has_subtasks':
-      switch (condition.operator) {
-        case 'is_set':
-          return taskData.hasSubtasks;
-        case 'is_not_set':
-          return !taskData.hasSubtasks;
-        default:
-          return true;
-      }
+      return compareBoolean(condition.operator, taskData.hasSubtasks);
+
+    case 'all_subtasks_resolved':
+      return compareBoolean(condition.operator, taskData.allSubtasksResolved);
+
+    case 'all_checklists_resolved':
+      return compareBoolean(condition.operator, taskData.allChecklistsResolved);
+
+    case 'has_comments':
+      return compareBoolean(condition.operator, taskData.hasComments);
 
     default:
+      // Campos de evento (tarefa criada, movida, vinculada, etc.)
+      if (condition.field.startsWith('on_')) {
+        const occurred = taskData.events.includes(condition.field);
+        return compareBoolean(condition.operator, occurred);
+      }
       return true;
   }
 };
 
 /**
- * Evaluate all conditions with AND/OR logic
+ * Evaluate all conditions with correct AND/OR precedence (E antes de OU).
+ * O conector fica na condição anterior: conditions[i].logic liga i com i+1.
  */
 const evaluateConditions = (conditions: AutomationCondition[], taskData: TaskData): boolean => {
   if (!conditions || conditions.length === 0) return true;
 
-  let result = evaluateSingleCondition(conditions[0], taskData);
+  // Agrupa por "E" e combina os grupos com "OU"
+  const groups: boolean[][] = [];
+  let currentGroup: boolean[] = [evaluateSingleCondition(conditions[0], taskData)];
 
   for (let i = 1; i < conditions.length; i++) {
-    const prevCondition = conditions[i - 1];
-    const currentCondition = conditions[i];
-    const currentResult = evaluateSingleCondition(currentCondition, taskData);
-
-    if (prevCondition.logic === 'AND') {
-      result = result && currentResult;
+    const connector = conditions[i - 1].logic || 'AND';
+    const value = evaluateSingleCondition(conditions[i], taskData);
+    if (connector === 'AND') {
+      currentGroup.push(value);
     } else {
-      result = result || currentResult;
+      groups.push(currentGroup);
+      currentGroup = [value];
     }
   }
+  groups.push(currentGroup);
 
-  return result;
+  return groups.some(group => group.every(Boolean));
 };
 
 /**
@@ -163,7 +363,7 @@ const fetchTaskData = async (taskId: string): Promise<TaskData | null> => {
     // Fetch task basic info
     const { data: task, error: taskError } = await supabase
       .from('tasks')
-      .select('id, priority, due_date')
+      .select('id, priority, due_date, start_date, status_id, title, format, time_spent')
       .eq('id', taskId)
       .single();
 
@@ -185,25 +385,75 @@ const fetchTaskData = async (taskId: string): Promise<TaskData | null> => {
 
     const assignees = assigneeData?.map(a => a.user_id) || [];
 
-    // Check for subtasks
-    const { count: subtaskCount } = await supabase
+    // Subtasks (existência e conclusão)
+    const { data: subtasks } = await supabase
       .from('tasks')
-      .select('id', { count: 'exact', head: true })
+      .select('id, status_id')
       .eq('parent_id', taskId);
+
+    const subtaskStatusIds = Array.from(
+      new Set((subtasks || []).map(s => s.status_id).filter(Boolean) as string[])
+    );
+
+    let doneStatusIds: string[] = [];
+    if (subtaskStatusIds.length > 0) {
+      const { data: statusRows } = await supabase
+        .from('statuses')
+        .select('id, category')
+        .in('id', subtaskStatusIds);
+      doneStatusIds = (statusRows || [])
+        .filter(s => ['done', 'closed', 'complete', 'completed'].includes((s.category || '').toLowerCase()))
+        .map(s => s.id);
+    }
+
+    const hasSubtasks = (subtasks?.length || 0) > 0;
+    const allSubtasksResolved =
+      hasSubtasks && (subtasks || []).every(s => !!s.status_id && doneStatusIds.includes(s.status_id));
+
+    // Checklists
+    const { data: checklists } = await supabase
+      .from('task_checklists')
+      .select('id')
+      .eq('task_id', taskId);
+
+    let allChecklistsResolved = false;
+    if (checklists && checklists.length > 0) {
+      const { data: items } = await supabase
+        .from('task_checklist_items')
+        .select('is_completed')
+        .in('checklist_id', checklists.map(c => c.id));
+      allChecklistsResolved = !!items && items.length > 0 && items.every(i => !!i.is_completed);
+    }
+
+    // Comentários
+    const { count: commentCount } = await supabase
+      .from('task_comments')
+      .select('id', { count: 'exact', head: true })
+      .eq('task_id', taskId);
 
     return {
       id: task.id,
       priority: task.priority,
       due_date: task.due_date,
+      start_date: task.start_date ?? null,
+      status_id: task.status_id || '',
+      title: task.title || '',
+      format: (task as any).format ?? null,
+      timeSpent: Number((task as any).time_spent ?? 0),
       tags,
       assignees,
-      hasSubtasks: (subtaskCount || 0) > 0,
+      hasSubtasks,
+      allSubtasksResolved,
+      allChecklistsResolved,
+      hasComments: (commentCount || 0) > 0,
+      events: getRecentTaskEvents(taskId),
     };
   } catch (error) {
     console.error('Error fetching task data for conditions:', error);
     return null;
   }
 };
+
 
 /**
  * Executes automations triggered by status changes
@@ -502,10 +752,15 @@ export const executeStatusChangeAutomations = async (
     }
 
     // Filter to only automations whose trigger or or_triggers include 'on_status_changed'
+    recordTaskEvent(info.taskId, 'on_status_changed');
+    const occurredEvents = getRecentTaskEvents(info.taskId);
+
     const statusAutomations = automations.filter(a => {
       const config = a.action_config as Record<string, any> | null;
       const orTriggers = (config?.or_triggers as string[] | undefined) || [];
-      return a.trigger === 'on_status_changed' || orTriggers.includes('on_status_changed');
+      const matches = a.trigger === 'on_status_changed' || orTriggers.includes('on_status_changed');
+      if (!matches) return false;
+      return triggerLogicSatisfied(config, a.trigger, 'on_status_changed', occurredEvents);
     });
 
     // 4. Filter automations by matching scopes
@@ -1474,10 +1729,15 @@ export const executeTagAutomations = async (
     if (error || !automations) return;
 
     // 5. Filter to automations whose trigger or or_triggers include the event
+    recordTaskEvent(taskId, event);
+    const occurredEvents = getRecentTaskEvents(taskId);
+
     const tagAutomations = automations.filter(a => {
       const config = a.action_config as Record<string, any> | null;
       const orTriggers = (config?.or_triggers as string[] | undefined) || [];
-      return a.trigger === event || orTriggers.includes(event);
+      const matches = a.trigger === event || orTriggers.includes(event);
+      if (!matches) return false;
+      return triggerLogicSatisfied(config, a.trigger, event, occurredEvents);
     });
 
     // 6. Filter by scope
