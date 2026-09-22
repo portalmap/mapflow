@@ -316,7 +316,11 @@ export default function EverythingView() {
                 variant={showAssigneePanel ? 'secondary' : 'outline'}
                 size="sm"
                 className="h-8 gap-2"
-                onClick={() => setShowAssigneePanel(!showAssigneePanel)}
+                onClick={() => {
+                  const next = !showAssigneePanel;
+                  setShowAssigneePanel(next);
+                  if (next && isNarrowScreen()) setShowFollowerPanel(false);
+                }}
               >
                 <User className="h-4 w-4" />
                 Responsável
@@ -330,7 +334,11 @@ export default function EverythingView() {
                 variant={showFollowerPanel ? 'secondary' : 'outline'}
                 size="sm"
                 className="h-8 gap-2"
-                onClick={() => setShowFollowerPanel(!showFollowerPanel)}
+                onClick={() => {
+                  const next = !showFollowerPanel;
+                  setShowFollowerPanel(next);
+                  if (next && isNarrowScreen()) setShowAssigneePanel(false);
+                }}
               >
                 <Eye className="h-4 w-4" />
                 Seguidor
@@ -345,7 +353,7 @@ export default function EverythingView() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 min-w-0 overflow-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-muted-foreground">Carregando tarefas...</p>
