@@ -234,23 +234,23 @@ export default function EverythingView() {
 
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 flex flex-col">
+    <div className="relative flex h-full overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="border-b p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div className="flex min-w-0 flex-col gap-2">
               <div className="flex items-center gap-2">
                 <Layers className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold">Tudo</h1>
               </div>
-              <div className="flex items-center gap-3 ml-8">
+              <div className="flex flex-wrap items-center gap-3 ml-0 sm:ml-8">
                 <Select 
                   value={selectedWorkspaceId ?? ''} 
                   onValueChange={handleWorkspaceChange}
                   disabled={workspacesLoading}
                 >
-                  <SelectTrigger className="w-64">
+                  <SelectTrigger className="w-full max-w-64 sm:w-64">
                     <SelectValue placeholder="Selecione um workspace" />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,21 +272,21 @@ export default function EverythingView() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Pesquisar tarefas..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-64"
+                  className="pl-9 w-full"
                 />
               </div>
             </div>
           </div>
 
           {/* Tabs & Filters */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Tabs defaultValue="list" className="w-auto">
               <TabsList>
                 <TabsTrigger value="list">Lista</TabsTrigger>
@@ -294,7 +294,7 @@ export default function EverythingView() {
               </TabsList>
             </Tabs>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <GroupBySelector value={groupBy} onChange={setGroupBy} />
               {!isGuest && (
               <EverythingFilters
