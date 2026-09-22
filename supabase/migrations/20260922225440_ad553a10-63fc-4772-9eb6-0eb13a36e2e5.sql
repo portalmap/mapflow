@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.guard_space_responsaveis_update() FROM PUBLIC, anon, authenticated;

@@ -7,6 +7,7 @@ import { useFolders, useCreateFolder } from '@/hooks/useFolders';
 import { useLists, useCreateList } from '@/hooks/useLists';
 import { useTaskStats } from '@/hooks/useTaskStats';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ const SpaceDetailView = () => {
   const { data: lists, isLoading: listsLoading } = useLists({ spaceId });
   const { data: taskStats, isLoading: statsLoading } = useTaskStats({ type: 'space', id: spaceId });
   const { data: members = [] } = useWorkspaceMembers(activeWorkspace?.id);
+  const { data: userRole } = useUserRole();
+  const canEditResponsaveis = userRole?.isAdmin ?? false;
   
   const createFolder = useCreateFolder();
   const createList = useCreateList();
@@ -237,39 +240,62 @@ const SpaceDetailView = () => {
                   <div key={field.key} className="space-y-1.5 min-w-0">
                     <p className="text-sm font-medium">{field.label}</p>
                     <p className="text-xs text-muted-foreground">{field.hint}</p>
-                    <Select
-                      value={field.value || 'none'}
-                      onValueChange={(value) => {
-                        const userId = value === 'none' ? null : value;
-                        updateSpace.mutate({
-                          id: currentSpace.id,
-                          name: currentSpace.name,
-                          ...(field.key === 'account' ? { accountUserId: userId } : {}),
-                          ...(field.key === 'headProjetos' ? { headProjetosUserId: userId } : {}),
-                          ...(field.key === 'headAccount' ? { headAccountUserId: userId } : {}),
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={`Selecione o ${field.label}...`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {members.map((member) => (
-                          <SelectItem key={member.user_id} value={member.user_id}>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5 shrink-0">
-                                <AvatarImage src={member.profile?.avatar_url || undefined} />
-                                <AvatarFallback className="text-[10px]">
-                                  {member.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="truncate">{member.profile?.full_name || 'Sem nome'}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {canEditResponsaveis ? (
+                      <Select
+                        value={field.value || 'none'}
+                        onValueChange={(value) => {
+                          const userId = value === 'none' ? null : value;
+                          updateSpace.mutate({
+                            id: currentSpace.id,
+                            name: currentSpace.name,
+                            ...(field.key === 'account' ? { accountUserId: userId } : {}),
+                            ...(field.key === 'headProjetos' ? { headProjetosUserId: userId } : {}),
+                            ...(field.key === 'headAccount' ? { headAccountUserId: userId } : {}),
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={`Selecione o ${field.label}...`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum</SelectItem>
+                          {members.map((member) => (
+                            <SelectItem key={member.user_id} value={member.user_id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5 shrink-0">
+                                  <AvatarImage src={member.profile?.avatar_url || undefined} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {member.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{member.profile?.full_name || 'Sem nome'}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      (() => {
+                        const responsavel = members.find((m) => m.user_id === field.value);
+                        return (
+                          <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 min-h-10">
+                            {responsavel ? (
+                              <>
+                                <Avatar className="h-5 w-5 shrink-0">
+                                  <AvatarImage src={responsavel.profile?.avatar_url || undefined} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {responsavel.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="truncate text-sm">{responsavel.profile?.full_name || 'Sem nome'}</span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground italic">Não definido</span>
+                            )}
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 ))}
               </div>
