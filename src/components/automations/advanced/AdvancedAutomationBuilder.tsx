@@ -20,6 +20,7 @@ import { getActionById } from './actionCategories';
 import { ScopeSelector } from '../ScopeSelector';
 import { toast } from 'sonner';
 import type { AutomationCondition } from './ConditionRow';
+import { TriggerLogicToggle } from './TriggerLogicToggle';
 
 interface AdvancedAutomationBuilderProps {
   open: boolean;
