@@ -4,18 +4,40 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useStatuses } from '@/hooks/useStatuses';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  CONDITION_FIELD_GROUPS,
+  PRIORITY_OPTIONS,
+  getConditionField,
+  getOperatorsForField,
+} from './conditionFields';
 
 export interface AutomationCondition {
   id: string;
-  field: 'tag' | 'priority' | 'assignee' | 'due_date' | 'has_subtasks';
-  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set' | 'any_of' | 'none_of';
+  /** Campo da tarefa ou gatilho espelhado (ver conditionFields.ts) */
+  field: string;
+  operator:
+    | 'equals'
+    | 'not_equals'
+    | 'contains'
+    | 'not_contains'
+    | 'is_set'
+    | 'is_not_set'
+    | 'any_of'
+    | 'none_of'
+    | 'before'
+    | 'after'
+    | 'greater_than'
+    | 'less_than';
   value: string | string[];
   logic: 'AND' | 'OR';
 }
@@ -27,55 +49,15 @@ interface ConditionRowProps {
   onDelete: () => void;
 }
 
-const FIELD_OPTIONS = [
-  { value: 'tag', label: 'Etiqueta' },
-  { value: 'priority', label: 'Prioridade' },
-  { value: 'assignee', label: 'Responsável' },
-  { value: 'due_date', label: 'Data de vencimento' },
-  { value: 'has_subtasks', label: 'Subtarefas' },
-];
-
-const OPERATOR_OPTIONS: Record<string, { value: string; label: string }[]> = {
-  tag: [
-    { value: 'contains', label: 'Contém' },
-    { value: 'not_contains', label: 'Não contém' },
-    { value: 'any_of', label: 'Inclui uma das opções' },
-    { value: 'none_of', label: 'Não inclui nenhuma' },
-  ],
-  priority: [
-    { value: 'equals', label: 'É igual a' },
-    { value: 'not_equals', label: 'É diferente de' },
-    { value: 'any_of', label: 'É uma das opções' },
-  ],
-  assignee: [
-    { value: 'is_set', label: 'Está atribuído' },
-    { value: 'is_not_set', label: 'Não está atribuído' },
-    { value: 'contains', label: 'Inclui usuário' },
-    { value: 'not_contains', label: 'Não inclui usuário' },
-  ],
-  due_date: [
-    { value: 'is_set', label: 'Está definida' },
-    { value: 'is_not_set', label: 'Não está definida' },
-  ],
-  has_subtasks: [
-    { value: 'is_set', label: 'Possui subtarefas' },
-    { value: 'is_not_set', label: 'Não possui subtarefas' },
-  ],
-};
-
-const PRIORITY_OPTIONS = [
-  { value: 'urgent', label: 'Urgente' },
-  { value: 'high', label: 'Alta' },
-  { value: 'medium', label: 'Média' },
-  { value: 'low', label: 'Baixa' },
-];
-
 export const ConditionRow = ({
   condition,
   workspaceId,
   onUpdate,
   onDelete,
 }: ConditionRowProps) => {
+  const fieldDef = getConditionField(condition.field);
+  const valueType = fieldDef?.valueType ?? 'boolean';
+
   // Fetch workspace members for assignee conditions
   const { data: members = [] } = useQuery({
     queryKey: ['workspace-members-with-profiles', workspaceId],
@@ -101,7 +83,7 @@ export const ConditionRow = ({
         profile: profiles?.find(p => p.id === member.user_id) || null,
       }));
     },
-    enabled: !!workspaceId && condition.field === 'assignee',
+    enabled: !!workspaceId && valueType === 'user',
   });
 
   // Fetch tags for tag conditions
@@ -118,16 +100,18 @@ export const ConditionRow = ({
       if (error) throw error;
       return data;
     },
-    enabled: !!workspaceId && condition.field === 'tag',
+    enabled: !!workspaceId && valueType === 'tag',
   });
+
+  const { data: statuses = [] } = useStatuses(valueType === 'status' ? workspaceId : undefined);
 
   const handleFieldChange = (field: string) => {
     // Reset operator and value when field changes
-    const defaultOperator = OPERATOR_OPTIONS[field]?.[0]?.value || 'equals';
-    onUpdate({ 
-      field: field as AutomationCondition['field'], 
+    const defaultOperator = getOperatorsForField(field)?.[0]?.value || 'equals';
+    onUpdate({
+      field,
       operator: defaultOperator as AutomationCondition['operator'],
-      value: [] 
+      value: [],
     });
   };
 
@@ -139,15 +123,20 @@ export const ConditionRow = ({
     onUpdate({ value });
   };
 
-  const operators = OPERATOR_OPTIONS[condition.field] || [];
-  const needsValue = !['is_set', 'is_not_set'].includes(condition.operator);
+  const operators = getOperatorsForField(condition.field) || [];
+  const needsValue =
+    !['is_set', 'is_not_set'].includes(condition.operator) &&
+    valueType !== 'boolean' &&
+    valueType !== 'event';
 
   const renderValueInput = () => {
     if (!needsValue) return null;
 
-    const currentValues = Array.isArray(condition.value) ? condition.value : [condition.value].filter(Boolean);
+    const currentValues = Array.isArray(condition.value)
+      ? condition.value
+      : [condition.value].filter(Boolean);
 
-    switch (condition.field) {
+    switch (valueType) {
       case 'priority':
         return (
           <div className="flex flex-wrap gap-1">
@@ -170,7 +159,7 @@ export const ConditionRow = ({
           </div>
         );
 
-      case 'assignee':
+      case 'user':
         return (
           <Select
             value={currentValues[0] || ''}
@@ -187,6 +176,54 @@ export const ConditionRow = ({
               ))}
             </SelectContent>
           </Select>
+        );
+
+      case 'status':
+        return (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {currentValues.map(statusId => {
+                const status = statuses.find(s => s.id === statusId);
+                return (
+                  <Badge
+                    key={statusId}
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => handleValueChange(currentValues.filter(v => v !== statusId))}
+                  >
+                    {status?.name || 'Etapa'} ×
+                  </Badge>
+                );
+              })}
+            </div>
+            <Select
+              value=""
+              onValueChange={(v) => {
+                if (v && !currentValues.includes(v)) {
+                  handleValueChange([...currentValues, v]);
+                }
+              }}
+            >
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Adicionar etapa..." />
+              </SelectTrigger>
+              <SelectContent>
+                {statuses
+                  .filter(status => !currentValues.includes(status.id))
+                  .map(status => (
+                    <SelectItem key={status.id} value={status.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: status.color || '#94a3b8' }}
+                        />
+                        {status.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
         );
 
       case 'tag':
@@ -234,10 +271,31 @@ export const ConditionRow = ({
           </div>
         );
 
+      case 'date':
+        return (
+          <Input
+            type="date"
+            value={typeof condition.value === 'string' ? condition.value : currentValues[0] || ''}
+            onChange={(e) => handleValueChange(e.target.value)}
+            className="h-8"
+          />
+        );
+
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={typeof condition.value === 'string' ? condition.value : currentValues[0] || ''}
+            onChange={(e) => handleValueChange(e.target.value)}
+            placeholder="0"
+            className="h-8"
+          />
+        );
+
       default:
         return (
           <Input
-            value={typeof condition.value === 'string' ? condition.value : ''}
+            value={typeof condition.value === 'string' ? condition.value : currentValues[0] || ''}
             onChange={(e) => handleValueChange(e.target.value)}
             placeholder="Valor..."
             className="h-8"
@@ -252,21 +310,28 @@ export const ConditionRow = ({
         <div className="flex items-center gap-1.5">
           {/* Field selector */}
           <Select value={condition.field} onValueChange={handleFieldChange}>
-            <SelectTrigger className="h-7 w-[120px] text-xs">
-              <SelectValue />
+            <SelectTrigger className="h-7 w-[190px] text-xs">
+              <SelectValue placeholder="Selecione o campo" />
             </SelectTrigger>
-            <SelectContent>
-              {FIELD_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
+            <SelectContent className="max-h-[300px]">
+              {CONDITION_FIELD_GROUPS.map(group => (
+                <SelectGroup key={group.name}>
+                  <SelectLabel className="text-[10px] uppercase text-muted-foreground">
+                    {group.name}
+                  </SelectLabel>
+                  {group.fields.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
 
           {/* Operator selector */}
           <Select value={condition.operator} onValueChange={handleOperatorChange}>
-            <SelectTrigger className="h-7 w-[150px] text-xs">
+            <SelectTrigger className="h-7 w-[170px] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
