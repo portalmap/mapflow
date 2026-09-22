@@ -47,6 +47,8 @@ import {
 } from '@/hooks/useAgenda';
 import { useAgendaCalendars } from '@/hooks/useAgendaCalendars';
 import { useFullscreen } from '@/hooks/useFullscreen';
+import { useMyGoogleStatus } from '@/hooks/useGoogleCalendar';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 type ViewMode = 'month' | 'week' | 'day';
