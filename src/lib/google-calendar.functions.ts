@@ -91,6 +91,28 @@ export const completeGoogleCalendarConnection = createServerFn({ method: 'POST' 
     return { ok: true, alreadyConnected: false };
   });
 
+/**
+ * A Agenda é um espelho do Google: sem conexão ativa, nada vindo do Google
+ * continua salvo aqui. Retorna quantos compromissos foram removidos.
+ */
+async function purgeGoogleEventsForUser(userId: string) {
+  const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+
+  const { data: googleEvents } = await supabaseAdmin
+    .from('calendar_events')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('source', 'google');
+
+  const ids = (googleEvents ?? []).map((e) => e.id);
+  if (ids.length) {
+    await supabaseAdmin.from('calendar_event_guests').delete().in('event_id', ids);
+    await supabaseAdmin.from('calendar_event_reminders').delete().in('event_id', ids);
+    await supabaseAdmin.from('calendar_events').delete().in('id', ids);
+  }
+  return ids.length;
+}
+
 /** Current user's Google connection status. */
 export const getMyGoogleCalendarStatus = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
@@ -99,6 +121,18 @@ export const getMyGoogleCalendarStatus = createServerFn({ method: 'GET' })
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
 
     const hasKey = !!(await getConnectionKeyForUser(context.userId, CONNECTOR_ID));
+    if (!hasKey) {
+      // Sobras de uma conexão anterior não devem continuar aparecendo na Agenda.
+      await purgeGoogleEventsForUser(context.userId);
+      await supabaseAdmin.from('calendar_google_accounts').delete().eq('user_id', context.userId);
+      return {
+        connected: false,
+        googleEmail: null,
+        status: 'disconnected' as const,
+        lastSyncedAt: null,
+        lastError: null,
+      };
+    }
     const { data } = await supabaseAdmin
       .from('calendar_google_accounts')
       .select('google_email, status, last_synced_at, last_error')
