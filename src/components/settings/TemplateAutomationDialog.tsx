@@ -22,7 +22,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ArrowRight, Zap, Target, X, LayoutGrid, Folder, List, Filter } from 'lucide-react';
 import { TriggerSelector } from '@/components/automations/advanced/TriggerSelector';
 import { ActionSelector } from '@/components/automations/advanced/ActionSelector';
-import { ActionConfigForm } from '@/components/automations/advanced/ActionConfigForm';
+import { ActionConfigForm, validateDateConfig } from '@/components/automations/advanced/ActionConfigForm';
 // TriggerConfigForm is now inline in TriggerSelector
 import { ConditionsBuilder } from '@/components/automations/advanced/ConditionsBuilder';
 import { MultiActionSelector, type AutomationAction } from '@/components/automations/advanced/MultiActionSelector';
