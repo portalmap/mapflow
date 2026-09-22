@@ -152,6 +152,13 @@ export const getMyGoogleCalendarStatus = createServerFn({ method: 'GET' })
 export const syncMyGoogleCalendar = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { getConnectionKeyForUser } = await import('@/lib/appUserConnections.server');
+    if (!(await getConnectionKeyForUser(context.userId, CONNECTOR_ID))) {
+      const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+      const removed = await purgeGoogleEventsForUser(context.userId);
+      await supabaseAdmin.from('calendar_google_accounts').delete().eq('user_id', context.userId);
+      return { more: false, error: 'not_connected' as const, removed, progress: null };
+    }
     const { syncUserGoogleCalendar } = await import('@/lib/googleCalendarSync.server');
     return syncUserGoogleCalendar(context.userId);
   });
@@ -241,20 +248,9 @@ export const disconnectGoogleCalendarAccount = createServerFn({ method: 'POST' }
     await supabaseAdmin.from('calendar_google_accounts').delete().eq('user_id', data.userId);
 
     // A Agenda é um espelho do Google: sem conexão, nada do Google fica salvo aqui.
-    const { data: googleEvents } = await supabaseAdmin
-      .from('calendar_events')
-      .select('id')
-      .eq('user_id', data.userId)
-      .eq('source', 'google');
+    const removed = await purgeGoogleEventsForUser(data.userId);
 
-    const ids = (googleEvents ?? []).map((e) => e.id);
-    if (ids.length) {
-      await supabaseAdmin.from('calendar_event_guests').delete().in('event_id', ids);
-      await supabaseAdmin.from('calendar_event_reminders').delete().in('event_id', ids);
-      await supabaseAdmin.from('calendar_events').delete().in('id', ids);
-    }
-
-    return { ok: true, removed: ids.length, kept: 0 };
+    return { ok: true, removed, kept: 0 };
 
   });
 
