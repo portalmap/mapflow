@@ -19,6 +19,10 @@ import { BulkActionsBar } from '@/components/tasks/BulkActionsBar';
 import { useColumnPreferences, DEFAULT_VISIBLE_COLUMNS, DEFAULT_COLUMN_ORDER, ColumnId, SortConfig } from '@/hooks/useColumnPreferences';
 import { useTaskSorting } from '@/hooks/useTaskSorting';
 
+/** Abaixo de 1024px os painéis abrem sobrepostos, então só um por vez. */
+const isNarrowScreen = () =>
+  typeof window !== 'undefined' && window.innerWidth < 1024;
+
 export default function EverythingView() {
   const { data: workspaces = [], isLoading: workspacesLoading } = useWorkspaces();
   const { activeWorkspace, setActiveWorkspace } = useWorkspace();
