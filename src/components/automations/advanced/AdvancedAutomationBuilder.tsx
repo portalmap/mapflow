@@ -47,6 +47,8 @@ export const AdvancedAutomationBuilder = ({
   const [name, setName] = useState('');
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
+  // Conector entre os gatilhos: triggerLogics[i] liga o gatilho i com o i+1
+  const [triggerLogics, setTriggerLogics] = useState<('AND' | 'OR')[]>([]);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [actionConfig, setActionConfig] = useState<Record<string, any>>({});
   const [conditions, setConditions] = useState<AutomationCondition[]>([]);
