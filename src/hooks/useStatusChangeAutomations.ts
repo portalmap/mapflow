@@ -932,7 +932,7 @@ const executeSetDueDate = async (
   // Buscar data atual
   const { data: task } = await supabase
     .from('tasks')
-    .select('due_date')
+    .select('due_date, created_at')
     .eq('id', info.taskId)
     .single();
 
@@ -952,9 +952,37 @@ const executeSetDueDate = async (
     const now = new Date();
     dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
   } else if (config?.date_type === 'specific_day') {
+    // Referência: mês em que a tarefa foi criada (fallback: hoje)
     const day = parseInt(config.day_of_month) || 1;
-    const now = new Date();
-    dueDate = new Date(now.getFullYear(), now.getMonth(), day).toISOString().split('T')[0];
+    const createdRaw = task?.created_at ? new Date(task.created_at) : new Date();
+    const creation = new Date(
+      createdRaw.getFullYear(),
+      createdRaw.getMonth(),
+      createdRaw.getDate()
+    );
+
+    // Clamp para o último dia do mês de criação, se necessário
+    const lastDayOfMonth = new Date(
+      creation.getFullYear(),
+      creation.getMonth() + 1,
+      0
+    ).getDate();
+    let target = new Date(
+      creation.getFullYear(),
+      creation.getMonth(),
+      Math.min(day, lastDayOfMonth)
+    );
+
+    // Se a data cair antes da criação, usar criação + 1 dia
+    if (target.getTime() < creation.getTime()) {
+      target = new Date(
+        creation.getFullYear(),
+        creation.getMonth(),
+        creation.getDate() + 1
+      );
+    }
+
+    dueDate = formatLocalDate(target);
   } else if (config?.days_from_now) {
     // Legacy compatibility
     const date = new Date();
