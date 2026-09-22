@@ -129,48 +129,57 @@ export function useFilteredAllTasks(
         }
       }
 
-      // Fetch tasks
-      let query = supabase
-        .from('tasks')
-        .select(`
-          id,
-          title,
-          description,
-          priority,
-          due_date,
-          start_date,
-          completed_at,
-          created_at,
-          updated_at,
-          workspace_id,
-          list_id,
-          parent_id,
-          status:statuses(id, name, color),
-          assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
-          list:lists(
+      // Fetch tasks (paginated: Supabase caps each response at 1000 rows)
+      const PAGE_SIZE = 1000;
+      const buildQuery = () => {
+        let query = supabase
+          .from('tasks')
+          .select(`
             id,
-            name,
-            space_id,
-            folder_id,
-            space:spaces(id, name),
-            folder:folders(id, name)
-          )
-        `)
-        .eq('workspace_id', workspaceId)
-        .is('archived_at', null)
-        .is('parent_id', null)
-        .order('created_at', { ascending: false });
+            title,
+            description,
+            priority,
+            due_date,
+            start_date,
+            completed_at,
+            created_at,
+            updated_at,
+            workspace_id,
+            list_id,
+            parent_id,
+            status:statuses(id, name, color),
+            assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url),
+            list:lists(
+              id,
+              name,
+              space_id,
+              folder_id,
+              space:spaces(id, name),
+              folder:folders(id, name)
+            )
+          `)
+          .eq('workspace_id', workspaceId)
+          .is('archived_at', null)
+          .is('parent_id', null)
+          .order('created_at', { ascending: false });
 
-      // Apply filters based on mode
-      if (listIds !== null) {
-        query = query.in('list_id', listIds);
-      } else if (taskIds !== null) {
-        query = query.in('id', taskIds);
+        // Apply filters based on mode
+        if (listIds !== null) {
+          query = query.in('list_id', listIds);
+        } else if (taskIds !== null) {
+          query = query.in('id', taskIds);
+        }
+
+        return query;
+      };
+
+      const tasks: any[] = [];
+      for (let offset = 0; ; offset += PAGE_SIZE) {
+        const { data: page, error: tasksError } = await buildQuery().range(offset, offset + PAGE_SIZE - 1);
+        if (tasksError) throw tasksError;
+        if (page?.length) tasks.push(...page);
+        if (!page || page.length < PAGE_SIZE) break;
       }
-
-      const { data: tasks, error: tasksError } = await query;
-
-      if (tasksError) throw tasksError;
 
       // Fetch all assignees for these tasks (batched to avoid URL length limits)
       const fetchedTaskIds = tasks?.map(t => t.id) || [];

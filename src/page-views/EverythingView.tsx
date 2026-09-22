@@ -84,12 +84,52 @@ export default function EverythingView() {
     }
   }, [columnPrefs]);
 
-  // Calculate assignee statistics
+  // Base statuses available for filtering (declared before the base filter)
+  const availableStatusesBase = useMemo(() => {
+    return statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
+  }, [statuses]);
+
+  /**
+   * Base set: everything except the people filters (assignee / follower).
+   * Panel counts are derived from this so the number shown always matches
+   * the number of rows the list will display.
+   */
+  const baseFilteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = task.title.toLowerCase().includes(query);
+        const matchesDescription = task.description?.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesDescription) return false;
+      }
+
+      if (filters.statuses.length > 0 && task.status) {
+        const selectedStatusNames = filters.statuses
+          .map((statusId) => availableStatusesBase.find((s) => s.id === statusId)?.name)
+          .filter(Boolean);
+        if (!selectedStatusNames.includes(task.status.name)) return false;
+      }
+
+      if (filters.priorities.length > 0) {
+        if (!filters.priorities.includes(task.priority)) return false;
+      }
+
+      if (!filters.showCompleted) {
+        const isCompleted = task.completed_at ||
+          (task.status?.name?.toLowerCase() === 'concluído');
+        if (isCompleted) return false;
+      }
+
+      return true;
+    });
+  }, [tasks, searchQuery, filters, availableStatusesBase]);
+
+  // Calculate assignee statistics (over the same base as the list)
   const assigneeStats = useMemo(() => {
     const stats: Record<string, { id: string; full_name: string | null; avatar_url: string | null; taskCount: number }> = {};
     let unassignedCount = 0;
 
-    tasks.forEach((task) => {
+    baseFilteredTasks.forEach((task) => {
       if (task.assignees.length === 0) {
         unassignedCount++;
       } else {
@@ -106,14 +146,14 @@ export default function EverythingView() {
       assignees: Object.values(stats).sort((a, b) => b.taskCount - a.taskCount),
       unassignedCount,
     };
-  }, [tasks]);
+  }, [baseFilteredTasks]);
 
-  // Calculate follower statistics
+  // Calculate follower statistics (over the same base as the list)
   const followerStats = useMemo(() => {
     const stats: Record<string, { id: string; full_name: string | null; avatar_url: string | null; taskCount: number }> = {};
     let noFollowerCount = 0;
 
-    tasks.forEach((task) => {
+    baseFilteredTasks.forEach((task) => {
       if (!task.followers || task.followers.length === 0) {
         noFollowerCount++;
       } else {
@@ -130,57 +170,19 @@ export default function EverythingView() {
       followers: Object.values(stats).sort((a, b) => b.taskCount - a.taskCount),
       noFollowerCount,
     };
-  }, [tasks]);
+  }, [baseFilteredTasks]);
 
   // Available statuses for filtering
-  const availableStatuses = useMemo(() => {
-    return statuses.map((s) => ({
-      id: s.id,
-      name: s.name,
-      color: s.color,
-    }));
-  }, [statuses]);
+  const availableStatuses = availableStatusesBase;
 
-  // Filter tasks
+  // Filter tasks: base filters + people filters
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = task.title.toLowerCase().includes(query);
-        const matchesDescription = task.description?.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesDescription) return false;
-      }
-
-      // Status filter - comparar por NOME em vez de ID
-      // (tarefas usam status de lista com IDs diferentes dos status de workspace)
-      if (filters.statuses.length > 0 && task.status) {
-        const selectedStatusNames = filters.statuses.map(statusId => 
-          availableStatuses.find(s => s.id === statusId)?.name
-        ).filter(Boolean);
-        
-        if (!selectedStatusNames.includes(task.status.name)) return false;
-      }
-
-      // Priority filter
-      if (filters.priorities.length > 0) {
-        if (!filters.priorities.includes(task.priority)) return false;
-      }
-
-    // Completed filter - verifica completed_at OU status com nome "Concluído"
-    if (!filters.showCompleted) {
-      const isCompleted = task.completed_at || 
-        (task.status?.name?.toLowerCase() === 'concluído');
-      if (isCompleted) {
-        return false;
-      }
-    }
-
+    return baseFilteredTasks.filter((task) => {
       // Assignee filter
       if (selectedAssignees.length > 0 || includeUnassigned) {
         const hasSelectedAssignee = task.assignees.some((a) => selectedAssignees.includes(a.id));
         const isUnassigned = task.assignees.length === 0;
-        
+
         if (!hasSelectedAssignee && !(includeUnassigned && isUnassigned)) {
           return false;
         }
@@ -190,7 +192,7 @@ export default function EverythingView() {
       if (selectedFollowers.length > 0 || includeNoFollowers) {
         const hasSelectedFollower = task.followers?.some((f) => selectedFollowers.includes(f.id));
         const hasNoFollower = !task.followers || task.followers.length === 0;
-        
+
         if (!hasSelectedFollower && !(includeNoFollowers && hasNoFollower)) {
           return false;
         }
@@ -198,7 +200,7 @@ export default function EverythingView() {
 
       return true;
     });
-  }, [tasks, searchQuery, filters, selectedAssignees, includeUnassigned, selectedFollowers, includeNoFollowers, availableStatuses]);
+  }, [baseFilteredTasks, selectedAssignees, includeUnassigned, selectedFollowers, includeNoFollowers]);
 
   // Apply sorting
   const sortedTasks = useTaskSorting(filteredTasks, sortConfig);

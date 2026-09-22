@@ -1,6 +1,29 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+/**
+ * Every task list/cache affected by a bulk action.
+ * Kept in one place so all bulk actions refresh the same surfaces.
+ */
+const BULK_AFFECTED_KEYS = [
+  ["tasks"],
+  ["tasks-with-assignees"],
+  ["all-tasks"],
+  ["all-tasks-with-assignees"],
+  ["filtered-all-tasks"],
+  ["task-assignees"],
+  ["task-followers"],
+  ["my-assigned-tasks"],
+  ["taskStats"],
+  ["subtasks"],
+] as const;
+
+function invalidateBulkQueries(queryClient: QueryClient) {
+  BULK_AFFECTED_KEYS.forEach((queryKey) => {
+    queryClient.invalidateQueries({ queryKey: [...queryKey] });
+  });
+}
 
 export function useBulkUpdateStatus() {
   const queryClient = useQueryClient();
@@ -22,9 +45,7 @@ export function useBulkUpdateStatus() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) atualizada(s)` });
     },
     onError: () => {
@@ -53,9 +74,7 @@ export function useBulkUpdatePriority() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) atualizada(s)` });
     },
     onError: () => {
@@ -84,9 +103,7 @@ export function useBulkUpdateDueDate() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) atualizada(s)` });
     },
     onError: () => {
@@ -107,23 +124,21 @@ export function useBulkAssignTasks() {
       taskIds: string[];
       assigneeIds: string[];
     }) => {
-      // For each task, add the assignees
-      for (const taskId of taskIds) {
-        for (const assigneeId of assigneeIds) {
-          await supabase
-            .from("task_assignees")
-            .upsert(
-              { task_id: taskId, user_id: assigneeId },
-              { onConflict: "task_id,user_id" }
-            );
-        }
+      // Build every (task, user) pair and write in batches
+      const rows = taskIds.flatMap((taskId) =>
+        assigneeIds.map((assigneeId) => ({ task_id: taskId, user_id: assigneeId }))
+      );
+
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const { error } = await supabase
+          .from("task_assignees")
+          .upsert(rows.slice(i, i + BATCH_SIZE), { onConflict: "task_id,user_id" });
+        if (error) throw error;
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
-      queryClient.invalidateQueries({ queryKey: ["task-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `Responsáveis adicionados a ${variables.taskIds.length} tarefa(s)` });
     },
     onError: () => {
@@ -158,9 +173,7 @@ export function useBulkMoveTasks() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) movida(s)` });
     },
     onError: () => {
@@ -211,9 +224,7 @@ export function useBulkCopyTasks() {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) copiada(s)` });
     },
     onError: () => {
@@ -239,9 +250,7 @@ export function useBulkArchiveTasks() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) arquivada(s)` });
     },
     onError: () => {
@@ -264,9 +273,7 @@ export function useBulkDeleteTasks() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks-with-assignees"] });
+      invalidateBulkQueries(queryClient);
       toast({ title: `${variables.taskIds.length} tarefa(s) excluída(s)` });
     },
     onError: () => {
