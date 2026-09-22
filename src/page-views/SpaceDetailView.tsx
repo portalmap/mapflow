@@ -7,6 +7,7 @@ import { useFolders, useCreateFolder } from '@/hooks/useFolders';
 import { useLists, useCreateList } from '@/hooks/useLists';
 import { useTaskStats } from '@/hooks/useTaskStats';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ const SpaceDetailView = () => {
   const { data: lists, isLoading: listsLoading } = useLists({ spaceId });
   const { data: taskStats, isLoading: statsLoading } = useTaskStats({ type: 'space', id: spaceId });
   const { data: members = [] } = useWorkspaceMembers(activeWorkspace?.id);
+  const { data: userRole } = useUserRole();
+  const canEditResponsaveis = userRole?.isAdmin ?? false;
   
   const createFolder = useCreateFolder();
   const createList = useCreateList();
