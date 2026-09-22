@@ -19,6 +19,10 @@ import { BulkActionsBar } from '@/components/tasks/BulkActionsBar';
 import { useColumnPreferences, DEFAULT_VISIBLE_COLUMNS, DEFAULT_COLUMN_ORDER, ColumnId, SortConfig } from '@/hooks/useColumnPreferences';
 import { useTaskSorting } from '@/hooks/useTaskSorting';
 
+/** Abaixo de 1024px os painéis abrem sobrepostos, então só um por vez. */
+const isNarrowScreen = () =>
+  typeof window !== 'undefined' && window.innerWidth < 1024;
+
 export default function EverythingView() {
   const { data: workspaces = [], isLoading: workspacesLoading } = useWorkspaces();
   const { activeWorkspace, setActiveWorkspace } = useWorkspace();
@@ -234,23 +238,23 @@ export default function EverythingView() {
 
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 flex flex-col">
+    <div className="relative flex h-full overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="border-b p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div className="flex min-w-0 flex-col gap-2">
               <div className="flex items-center gap-2">
                 <Layers className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold">Tudo</h1>
               </div>
-              <div className="flex items-center gap-3 ml-8">
+              <div className="flex flex-wrap items-center gap-3 ml-0 sm:ml-8">
                 <Select 
                   value={selectedWorkspaceId ?? ''} 
                   onValueChange={handleWorkspaceChange}
                   disabled={workspacesLoading}
                 >
-                  <SelectTrigger className="w-64">
+                  <SelectTrigger className="w-full max-w-64 sm:w-64">
                     <SelectValue placeholder="Selecione um workspace" />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,21 +276,21 @@ export default function EverythingView() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Pesquisar tarefas..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-64"
+                  className="pl-9 w-full"
                 />
               </div>
             </div>
           </div>
 
           {/* Tabs & Filters */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Tabs defaultValue="list" className="w-auto">
               <TabsList>
                 <TabsTrigger value="list">Lista</TabsTrigger>
@@ -294,7 +298,7 @@ export default function EverythingView() {
               </TabsList>
             </Tabs>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <GroupBySelector value={groupBy} onChange={setGroupBy} />
               {!isGuest && (
               <EverythingFilters
@@ -316,7 +320,11 @@ export default function EverythingView() {
                 variant={showAssigneePanel ? 'secondary' : 'outline'}
                 size="sm"
                 className="h-8 gap-2"
-                onClick={() => setShowAssigneePanel(!showAssigneePanel)}
+                onClick={() => {
+                  const next = !showAssigneePanel;
+                  setShowAssigneePanel(next);
+                  if (next && isNarrowScreen()) setShowFollowerPanel(false);
+                }}
               >
                 <User className="h-4 w-4" />
                 Responsável
@@ -330,7 +338,11 @@ export default function EverythingView() {
                 variant={showFollowerPanel ? 'secondary' : 'outline'}
                 size="sm"
                 className="h-8 gap-2"
-                onClick={() => setShowFollowerPanel(!showFollowerPanel)}
+                onClick={() => {
+                  const next = !showFollowerPanel;
+                  setShowFollowerPanel(next);
+                  if (next && isNarrowScreen()) setShowAssigneePanel(false);
+                }}
               >
                 <Eye className="h-4 w-4" />
                 Seguidor
@@ -345,7 +357,7 @@ export default function EverythingView() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 min-w-0 overflow-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-muted-foreground">Carregando tarefas...</p>
