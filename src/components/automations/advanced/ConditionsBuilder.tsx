@@ -2,6 +2,7 @@ import { Plus, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ConditionRow, type AutomationCondition } from './ConditionRow';
+import { cn } from '@/lib/utils';
 
 interface ConditionsBuilderProps {
   workspaceId: string;
