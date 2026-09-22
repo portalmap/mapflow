@@ -1729,10 +1729,15 @@ export const executeTagAutomations = async (
     if (error || !automations) return;
 
     // 5. Filter to automations whose trigger or or_triggers include the event
+    recordTaskEvent(taskId, event);
+    const occurredEvents = getRecentTaskEvents(taskId);
+
     const tagAutomations = automations.filter(a => {
       const config = a.action_config as Record<string, any> | null;
       const orTriggers = (config?.or_triggers as string[] | undefined) || [];
-      return a.trigger === event || orTriggers.includes(event);
+      const matches = a.trigger === event || orTriggers.includes(event);
+      if (!matches) return false;
+      return triggerLogicSatisfied(config, a.trigger, event, occurredEvents);
     });
 
     // 6. Filter by scope
