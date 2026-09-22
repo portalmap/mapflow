@@ -208,8 +208,11 @@ export const AdvancedAutomationBuilder = ({
       : selectedAction;
 
     const primaryAction = getActionById(primaryActionType || '');
-    const triggerLabels = selectedTriggers.map(id => getTriggerById(id)?.label).filter(Boolean);
-    const triggerDesc = triggerLabels.length > 1 ? triggerLabels.join(' OU ') : (trigger?.label || '');
+    const triggerLabels = selectedTriggers.map(id => getTriggerById(id)?.label || '').filter(Boolean);
+    const triggerDesc = triggerLabels.length > 1
+      ? triggerLabels.reduce((acc, label, i) =>
+          i === 0 ? label : `${acc} ${normalizedLogics[i - 1] === 'AND' ? 'E' : 'OU'} ${label}`, '')
+      : (trigger?.label || '');
     const description = name || `Quando ${triggerDesc} → ${useMultipleActions ? `${actions.length} ações` : primaryAction?.label}`;
 
     try {
