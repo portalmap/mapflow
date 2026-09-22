@@ -25,6 +25,7 @@ import { ActionSelector } from '@/components/automations/advanced/ActionSelector
 import { ActionConfigForm, validateDateConfig } from '@/components/automations/advanced/ActionConfigForm';
 // TriggerConfigForm is now inline in TriggerSelector
 import { ConditionsBuilder } from '@/components/automations/advanced/ConditionsBuilder';
+import { TriggerLogicToggle } from '@/components/automations/advanced/TriggerLogicToggle';
 import { MultiActionSelector, type AutomationAction } from '@/components/automations/advanced/MultiActionSelector';
 import { getTriggerById, getCategoryByTriggerId } from '@/components/automations/advanced/triggerCategories';
 import { getActionById } from '@/components/automations/advanced/actionCategories';
