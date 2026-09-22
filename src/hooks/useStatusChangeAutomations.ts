@@ -18,8 +18,20 @@ interface AutomationExecutionResult {
 
 interface AutomationCondition {
   id: string;
-  field: 'tag' | 'priority' | 'assignee' | 'due_date' | 'has_subtasks';
-  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'is_set' | 'is_not_set' | 'any_of' | 'none_of';
+  field: string;
+  operator:
+    | 'equals'
+    | 'not_equals'
+    | 'contains'
+    | 'not_contains'
+    | 'is_set'
+    | 'is_not_set'
+    | 'any_of'
+    | 'none_of'
+    | 'before'
+    | 'after'
+    | 'greater_than'
+    | 'less_than';
   value: string | string[];
   logic: 'AND' | 'OR';
 }
@@ -28,10 +40,80 @@ interface TaskData {
   id: string;
   priority: string;
   due_date: string | null;
+  start_date: string | null;
+  status_id: string;
+  title: string;
+  format: string | null;
+  timeSpent: number;
   tags: string[];
   assignees: string[];
   hasSubtasks: boolean;
+  allSubtasksResolved: boolean;
+  allChecklistsResolved: boolean;
+  hasComments: boolean;
+  /** Eventos ocorridos na mesma alteração (para condições/gatilhos de evento) */
+  events: string[];
 }
+
+/**
+ * Registro curto de eventos por tarefa, usado para avaliar gatilhos ligados por
+ * "E" (todos precisam acontecer na mesma alteração) e condições de evento.
+ */
+const EVENT_WINDOW_MS = 8000;
+const recentTaskEvents = new Map<string, { event: string; at: number }[]>();
+
+export const recordTaskEvent = (taskId: string, event: string) => {
+  const now = Date.now();
+  const list = (recentTaskEvents.get(taskId) || []).filter(e => now - e.at < EVENT_WINDOW_MS);
+  list.push({ event, at: now });
+  recentTaskEvents.set(taskId, list);
+};
+
+const getRecentTaskEvents = (taskId: string): string[] => {
+  const now = Date.now();
+  const list = (recentTaskEvents.get(taskId) || []).filter(e => now - e.at < EVENT_WINDOW_MS);
+  recentTaskEvents.set(taskId, list);
+  return Array.from(new Set(list.map(e => e.event)));
+};
+
+/**
+ * Verifica a lógica E/OU entre gatilhos.
+ * action_config.trigger_logics guarda o conector entre o gatilho i e i+1
+ * (na ordem [trigger, ...or_triggers]). Ausente = tudo OU (comportamento antigo).
+ */
+const triggerLogicSatisfied = (
+  config: Record<string, any> | null,
+  primaryTrigger: string,
+  firedEvent: string,
+  occurredEvents: string[]
+): boolean => {
+  const triggers = [primaryTrigger, ...((config?.or_triggers as string[] | undefined) || [])];
+  if (triggers.length <= 1) return true;
+
+  const logics = (config?.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
+  if (logics.length === 0 || logics.every(l => l !== 'AND')) return true;
+
+  // Quebra os gatilhos em grupos: dentro do grupo = E, entre grupos = OU
+  const groups: string[][] = [];
+  let current: string[] = [triggers[0]];
+  for (let i = 1; i < triggers.length; i++) {
+    if (logics[i - 1] === 'AND') {
+      current.push(triggers[i]);
+    } else {
+      groups.push(current);
+      current = [triggers[i]];
+    }
+  }
+  groups.push(current);
+
+  const groupsWithEvent = groups.filter(g => g.includes(firedEvent));
+  if (groupsWithEvent.length === 0) return false;
+
+  // Basta que um dos grupos que contém o evento disparado esteja completo
+  return groupsWithEvent.some(group =>
+    group.every(t => t === firedEvent || occurredEvents.includes(t))
+  );
+};
 
 // Helper para registrar atividade de automação
 const logAutomationActivity = async (
