@@ -20,6 +20,7 @@ type ItemType = 'event' | 'task' | 'out_of_office' | 'focus_time';
 
 interface GoogleEvent {
   id: string;
+  iCalUID?: string;
   status?: string;
   etag?: string;
   eventType?: string;
@@ -290,6 +291,9 @@ function fromGoogleEvent(
       ev.outOfOfficeProperties?.autoDeclineMode === 'declineOnlyNewConflictingInvitations',
     response_status: self?.responseStatus ?? null,
     google_event_id: ev.id,
+    // Código único do compromisso: igual em todas as agendas e cópias do mesmo
+    // compromisso. É a chave que evita duplicatas quando o Google muda o id.
+    google_ical_uid: icalUidOf(ev),
     google_calendar_id: calendarId,
     google_etag: ev.etag ?? null,
     google_html_link: ev.htmlLink ?? null,
