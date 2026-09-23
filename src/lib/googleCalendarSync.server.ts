@@ -621,7 +621,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         status: 'online',
         sync_token: syncTokens[calendarId] ?? null,
         sync_tokens: syncTokens,
-        sync_cursor: cursor ?? {},
+        sync_cursor: (cursor
+          ? { ...cursor, recurrence: Object.fromEntries(recurrenceCache) }
+          : {}) as any,
         last_synced_at: new Date().toISOString(),
         last_error: null,
       },
