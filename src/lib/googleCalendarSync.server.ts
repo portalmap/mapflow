@@ -603,6 +603,8 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
   if (account?.sync_token && !syncTokens[calendarId]) syncTokens[calendarId] = account.sync_token;
 
   const startedAt = Date.now();
+  /** Marca desta rodada: usada para reconhecer sobras de sincronizações antigas. */
+  const syncRunAt = new Date().toISOString();
   const MAX_SYNC_MS = 20_000;
   const outOfTime = () => Date.now() - startedAt > MAX_SYNC_MS;
 
