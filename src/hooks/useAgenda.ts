@@ -130,8 +130,23 @@ export function useAgendaEvents(rangeStart: Date, rangeEnd: Date) {
       if (connected) query = query.eq('user_id', user!.id);
       const { data, error } = await query.order('starts_at');
       if (error) throw error;
-      return (data ?? []) as unknown as CalendarEvent[];
+      const rows = (data ?? []) as unknown as CalendarEvent[];
+      if (connected) return rows;
+      // Sem agenda conectada, o mesmo compromisso pode chegar pelas agendas de
+      // várias pessoas. O código único do Google mostra que é um só: mantemos
+      // uma única cópia, preferindo a do próprio usuário.
+      const byKey = new Map<string, CalendarEvent>();
+      for (const row of rows) {
+        const anyRow = row as unknown as { google_ical_uid?: string | null };
+        const key = `${anyRow.google_ical_uid ?? row.google_event_id ?? row.id}|${row.starts_at}`;
+        const current = byKey.get(key);
+        if (!current || (row.user_id === user!.id && current.user_id !== user!.id)) {
+          byKey.set(key, row);
+        }
+      }
+      return Array.from(byKey.values()).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
     },
+
   });
 }
 
