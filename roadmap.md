@@ -17,3 +17,4 @@
 - [x] Copiar as automações atuais para modelos independentes, separadas por tipo
 - [x] Validar criação, edição, duplicação, exclusão e aplicação em massa
 - [x] Agenda: tela sempre atualizada, importação a partir do mês vigente (sem passado), limpeza segura
+- [x] Agenda: sincronização incremental + aviso do Google em tempo real (renovação diária por rotina agendada: pendente)
