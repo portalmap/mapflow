@@ -1,0 +1,2 @@
+ALTER TABLE public.calendar_events ADD COLUMN IF NOT EXISTS google_ical_uid text;
+CREATE INDEX IF NOT EXISTS idx_calendar_events_ical_uid ON public.calendar_events (user_id, google_ical_uid, starts_at) WHERE google_ical_uid IS NOT NULL;

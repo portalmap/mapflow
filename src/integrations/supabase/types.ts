@@ -385,6 +385,7 @@ export type Database = {
           google_etag: string | null
           google_event_id: string | null
           google_html_link: string | null
+          google_ical_uid: string | null
           google_task_id: string | null
           google_task_list_id: string | null
           guests_can_invite_others: boolean
@@ -428,6 +429,7 @@ export type Database = {
           google_etag?: string | null
           google_event_id?: string | null
           google_html_link?: string | null
+          google_ical_uid?: string | null
           google_task_id?: string | null
           google_task_list_id?: string | null
           guests_can_invite_others?: boolean
@@ -471,6 +473,7 @@ export type Database = {
           google_etag?: string | null
           google_event_id?: string | null
           google_html_link?: string | null
+          google_ical_uid?: string | null
           google_task_id?: string | null
           google_task_list_id?: string | null
           guests_can_invite_others?: boolean
