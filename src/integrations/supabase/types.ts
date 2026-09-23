@@ -507,6 +507,7 @@ export type Database = {
           calendar_id: string
           connected_at: string
           created_at: string
+          full_synced_at: string | null
           google_email: string | null
           id: string
           last_error: string | null
@@ -517,11 +518,16 @@ export type Database = {
           sync_tokens: Json
           updated_at: string
           user_id: string
+          watch_channel_id: string | null
+          watch_expires_at: string | null
+          watch_resource_id: string | null
+          watch_token: string | null
         }
         Insert: {
           calendar_id?: string
           connected_at?: string
           created_at?: string
+          full_synced_at?: string | null
           google_email?: string | null
           id?: string
           last_error?: string | null
@@ -532,11 +538,16 @@ export type Database = {
           sync_tokens?: Json
           updated_at?: string
           user_id: string
+          watch_channel_id?: string | null
+          watch_expires_at?: string | null
+          watch_resource_id?: string | null
+          watch_token?: string | null
         }
         Update: {
           calendar_id?: string
           connected_at?: string
           created_at?: string
+          full_synced_at?: string | null
           google_email?: string | null
           id?: string
           last_error?: string | null
@@ -547,6 +558,10 @@ export type Database = {
           sync_tokens?: Json
           updated_at?: string
           user_id?: string
+          watch_channel_id?: string | null
+          watch_expires_at?: string | null
+          watch_resource_id?: string | null
+          watch_token?: string | null
         }
         Relationships: []
       }
