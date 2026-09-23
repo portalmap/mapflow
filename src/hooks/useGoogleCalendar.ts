@@ -212,7 +212,7 @@ export function useSyncGoogleCalendar() {
     mutationFn: async () => {
       if (syncInFlight) return syncInFlight;
       const run = (async () => {
-        const MAX_ROUNDS = 40;
+        const MAX_ROUNDS = 15;
         let result = await sync();
         let rounds = 1;
         while (result?.more && !result.error && rounds < MAX_ROUNDS) {
