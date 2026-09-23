@@ -3846,6 +3846,10 @@ export type Database = {
         Args: { _editor_id: string; _target_user_id: string }
         Returns: boolean
       }
+      can_manage_followers: {
+        Args: { _workspace_id: string }
+        Returns: boolean
+      }
       can_manage_space_template: {
         Args: { _template_id: string; _user_id: string }
         Returns: boolean
