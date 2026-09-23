@@ -230,6 +230,9 @@ export const disconnectGoogleCalendarAccount = createServerFn({ method: 'POST' }
       '@/integrations/lovable/appUserConnector.server'
     );
 
+    const { stopGoogleWatch } = await import('@/lib/googleCalendarSync.server');
+    await stopGoogleWatch(data.userId).catch(() => undefined);
+
     const key = await getConnectionKeyForUser(data.userId, CONNECTOR_ID);
     if (key) {
       try {
