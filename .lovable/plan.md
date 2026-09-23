@@ -1,43 +1,27 @@
-# Agenda da Wendy: compromissos que não aparecem na tela
+# Agenda: parar a sincronização contínua e reagir na hora a mudanças no Google
 
-## O que eu já confirmei no banco
+## O que eu confirmei
 
-Na semana do print (21 a 25/09), a agenda da Wendy **tem mais compromissos salvos do que a tela mostra**:
-
-| Dia | Salvos no MAP Flow | Aparecem no print |
-|---|---|---|
-| Seg 21 | 13 | 5 |
-| Ter 22 | 13 | ~3 |
-| Qua 23 | 16 | ~4 |
-| Qui 24 | 14 | ~5 |
-| Sex 25 | 8 | ~4 |
-
-Exemplos de segunda que existem no banco e não aparecem: "Daily Estratégica | MAP", "Daily Operacional | MAP", "Alinhamento de Processos e Automações", "Checkin | Strike Jiu Jitsu", "Weekly de Alta Performance", "Checkin | PsicoMed".
-
-Um detalhe importante: os que aparecem na tela foram gravados às 23:04/23:08 da noite anterior; **todos os que faltam foram gravados depois (23:25, 23:40, 23:46)** — ou seja, a tela parece estar presa a uma foto antiga dos dados, tirada no meio da sincronização (o botão no print ainda está em "Sincronizando").
-
-Também confirmei que não é filtro de agendas (todos os compromissos dela vêm da mesma agenda), não é permissão de acesso e não é compromisso longo escondendo os outros.
-
-Ainda não dá para afirmar 100% a causa raiz sem ver a resposta que o navegador dela recebe — por isso o passo 1 é confirmação.
+- **Por que fica "Sincronizando"**: todo "Atualizar", e também toda vez que a Agenda é aberta, relê a agenda inteira no Google (do mês atual até 6 meses à frente). A sincronização nunca usa o modo incremental, que traz só o que mudou. A marca de "última leitura" de todas as contas está vazia, então cada rodada recomeça do zero. Com milhares de compromissos, isso vira dezenas de rodadas de 20 segundos.
+- **Hoje nenhuma rodada terminou**: a data da última sincronização das três contas (Victor, Wendy e Portal) ainda é da noite de 22/09, e não há registro de erro. A sincronização está começando e não chega ao fim.
+- **Não existe aviso automático do Google**: o MAP Flow não recebe nenhum aviso quando alguém cria, altera ou convida. As mudanças só chegam quando a Agenda é aberta ou quando você clica em "Atualizar".
+- **Enviar convites já funciona na hora**: ao salvar um compromisso aqui, ele e os convidados vão para o Google na mesma sincronização. Quem já é avisado na hora é o Google, que manda o e-mail do convite. O problema está só no caminho de volta.
 
 ## O que vou fazer
 
-1. **Confirmar** com medição: mostrar (em desenvolvimento) quantos compromissos o período carregou e comparar com o banco, para provar se a tela recebeu menos do que existe ou se ela está exibindo uma foto velha.
-2. **Fazer a tela sempre mostrar o que já está salvo**: recarregar o período ao voltar para a aba, ao reabrir a Agenda e ao fim de cada rodada de sincronização — hoje uma aba aberta há horas pode continuar mostrando dados antigos.
-3. **Nunca esconder compromissos durante a sincronização**: o que já está salvo continua visível, e o indicador "Sincronizando" só informa o progresso.
-4. **Fazer a importação terminar**: hoje cada "Atualizar" relê a agenda inteira (7 meses) em rodadas de 20 segundos, e cada rodada gasta tempo buscando repetidamente a regra de repetição das séries. Vou reaproveitar esse trabalho entre rodadas e evitar releituras desnecessárias, para a importação concluir e não parar no meio.
-5. **Proteger contra remoção indevida**: a limpeza de sobras só roda quando a leitura completa terminou de fato na mesma sincronização — nada é apagado no Google em nenhum caso.
+1. **Sincronização incremental**: a primeira leitura continua completa, a partir do mês vigente. Depois disso, cada atualização pede ao Google só o que mudou desde a última leitura, então leva segundos.
+2. **Não reler tudo ao abrir a Agenda**: abrir a tela mostra o que já está salvo e faz só a leitura incremental.
+3. **Avisos do Google em tempo real**: cadastrar um aviso no Google para cada conta conectada. Quando chega um convite, uma alteração ou um cancelamento, o Google avisa o MAP Flow, que busca só aquela mudança. A tela se atualiza sozinha para quem estiver com a Agenda aberta.
+4. **Renovação automática do aviso**: o Google expira esses avisos em cerca de 7 dias. Uma rotina diária renova antes de vencer. Se a renovação falhar, a Agenda volta a atualizar ao ser aberta.
+5. **Destravar e mostrar o estado real**: gravar o motivo quando uma rodada não termina, limitar o número de rodadas e exibir "Atualizado às HH:MM" em vez de "Sincronizando" sem fim.
 
-Escopo restrito ao módulo Agenda: tarefas, automações e notificações não são tocadas.
+Continua valendo a regra: nada anterior ao mês vigente é importado, e nada é apagado no Google. O escopo fica só na Agenda.
 
 ## Detalhes técnicos
 
-- `src/hooks/useAgenda.ts`: `useAgendaEvents` com `refetchOnMount: 'always'`, `refetchOnWindowFocus: true`, `staleTime: 0`; manter a regra conectado/desconectado e a deduplicação por `google_ical_uid`.
-- `src/hooks/useGoogleCalendar.ts`: trocar `invalidateQueries` por `refetchQueries` em `['agenda-events']` entre rodadas e no `onSuccess`, garantindo releitura mesmo com a query montada.
-- `src/page-views/Agenda.tsx`: manter a grade renderizada enquanto `isLoading`/sincronização estiver em curso (usar dados anteriores em vez de trocar por "Carregando agenda...").
-- `src/lib/googleCalendarSync.server.ts`:
-  - persistir o cache de recorrência (`recurrenceCache`) no `sync_cursor` ou derivar o RRULE do próprio item da série, eliminando um GET por série por rodada;
-  - evitar o `update` quando etag e `google_event_id` coincidem (já existe) e reduzir os `update` em lote de `last_synced_at` agrupando com o próprio update do registro;
-  - manter a limpeza de sobras condicionada a `startedFromScratch && finishedAllPages`, e adicionar a condição de a rodada não ter sido interrompida por tempo;
-  - instrumentar contagens (`pulled`, páginas, `more`) em log para confirmar a conclusão da leitura completa.
-- Verificação: `bunx tsgo --noEmit`, `/agenda` respondendo 200 e recontagem por dia no banco versus o que a tela exibe.
+- `googleCalendarSync.server.ts`: usar `updatedMin = last_synced_at - 5min` junto com `timeMin/timeMax` quando houver leitura completa anterior. Usar `showDeleted=true` para capturar cancelamentos. A limpeza de sobras fica só na leitura completa. Gravar `last_synced_at` e `last_error` ao fim de toda rodada, inclusive nas interrompidas, com log de páginas e tempo.
+- Nova coluna em `calendar_google_accounts`: `full_synced_at` (quando a última leitura completa terminou), `watch_channel_id`, `watch_resource_id`, `watch_expires_at`, `watch_token`.
+- `POST /calendars/primary/events/watch` ao conectar e na renovação. Rota pública `src/routes/api/public/google-calendar/webhook.ts` valida `X-Goog-Channel-Token` e `X-Goog-Channel-ID` com o que está salvo, responde 200 na hora e dispara a sincronização incremental daquele usuário.
+- Tempo real na tela: incluir `calendar_events` na publicação de tempo real, com assinatura em `useAgendaEvents` filtrada por `user_id`, invalidando `['agenda-events']`.
+- Renovação: rota `/api/public/google-calendar/renew`, protegida por segredo, chamada diariamente pelo pg_cron. Ao desconectar, chamar `channels/stop`.
+- `GoogleAgendaButton.tsx`: fazer só a leitura incremental ao abrir, com rótulo "Atualizado às HH:MM" e erro visível quando a rodada falhar.
