@@ -388,6 +388,8 @@ interface SyncCursor {
   pageToken: string | null;
   windowFrom: string;
   windowTo: string;
+  /** Leitura incremental: só o que mudou desde este instante. */
+  updatedMin?: string | null;
   /** Regras de repetição já buscadas (reaproveitadas entre rodadas). */
   recurrence?: Record<string, string[] | null>;
 }
@@ -404,6 +406,7 @@ function readCursor(raw: unknown): SyncCursor | null {
     pageToken: typeof c.pageToken === 'string' ? c.pageToken : null,
     windowFrom: c.windowFrom,
     windowTo: c.windowTo,
+    updatedMin: typeof c.updatedMin === 'string' ? c.updatedMin : null,
     recurrence: c.recurrence && typeof c.recurrence === 'object' ? c.recurrence : {},
   };
 }
@@ -654,6 +657,11 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       pageToken: null,
       windowFrom: from.toISOString(),
       windowTo: to.toISOString(),
+      // Já houve leitura completa: pede ao Google só o que mudou desde a última.
+      updatedMin:
+        (account as any)?.full_synced_at && account?.last_synced_at
+          ? new Date(new Date(account.last_synced_at).getTime() - 5 * 60_000).toISOString()
+          : null,
       recurrence: {},
     };
   }
@@ -924,6 +932,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       else {
         params.set('timeMin', cursor.windowFrom);
         params.set('timeMax', cursor.windowTo);
+        if (cursor.updatedMin) params.set('updatedMin', cursor.updatedMin);
       }
       if (cursor.pageToken) params.set('pageToken', cursor.pageToken);
 
@@ -965,7 +974,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
 
     // Limpeza de sobras: numa listagem completa concluída, o que o Google não
     // devolveu mais nessa janela some daqui (nada é apagado no Google).
-    if (startedFromScratch && finishedAllPages && !syncToken) {
+    if (startedFromScratch && finishedAllPages && !syncToken && !cursor.updatedMin) {
       const { error, count } = await admin
         .from('calendar_events')
         .delete({ count: 'exact' })
@@ -985,6 +994,7 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
 
   if (stoppedForTime) {
     await persistAccount(cursor);
+    console.log('[agenda] rodada interrompida por tempo', { userId, pulled, incremental: !!cursor.updatedMin });
     return {
       connected: true,
       pushed,
@@ -1062,6 +1072,18 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
   }
 
   await persistAccount(null);
+  if (!cursor.updatedMin) {
+    await admin
+      .from('calendar_google_accounts')
+      .update({ full_synced_at: new Date().toISOString() } as any)
+      .eq('user_id', userId);
+  }
+  console.log('[agenda] sync concluída', { userId, pulled, pushed, removed, incremental: !!cursor.updatedMin, ms: Date.now() - startedAt });
+  try {
+    await ensureGoogleWatch(userId, connectionAPIKey);
+  } catch (e) {
+    console.error('[agenda] aviso do Google não registrado', e);
+  }
 
   return {
     connected: true,
@@ -1124,4 +1146,67 @@ export async function pushRsvpToGoogle(
     .eq('id', eventId);
 
   return { pushed: true };
+}
+
+
+// ---------- Avisos do Google (push notifications) ----------
+
+export const GOOGLE_WEBHOOK_URL = 'https://mapflow.lovable.app/api/public/google-calendar/webhook';
+
+/** Registra (ou renova, faltando menos de 2 dias) o aviso do Google para a agenda principal. */
+export async function ensureGoogleWatch(userId: string, connectionAPIKey?: string | null) {
+  const { supabaseAdmin: admin } = await import('@/integrations/supabase/client.server');
+  const key = connectionAPIKey ?? (await getConnectionKeyForUser(userId, GOOGLE_CONNECTOR_ID));
+  if (!key) return;
+  const { data: account } = await admin
+    .from('calendar_google_accounts')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!account) return;
+  const acc = account as any;
+  const expires = acc.watch_expires_at ? new Date(acc.watch_expires_at).getTime() : 0;
+  if (acc.watch_channel_id && expires - Date.now() > 2 * 86_400_000) return;
+
+  if (acc.watch_channel_id && acc.watch_resource_id) {
+    await google(key, '/channels/stop', {
+      method: 'POST',
+      body: JSON.stringify({ id: acc.watch_channel_id, resourceId: acc.watch_resource_id }),
+    }).catch(() => undefined);
+  }
+
+  const channelId = crypto.randomUUID();
+  const token = crypto.randomUUID() + crypto.randomUUID();
+  const calendarId = acc.calendar_id || 'primary';
+  const res = await google(key, `/calendars/${encodeURIComponent(calendarId)}/events/watch`, {
+    method: 'POST',
+    body: JSON.stringify({ id: channelId, type: 'web_hook', address: GOOGLE_WEBHOOK_URL, token }),
+  });
+  if (!res.ok) {
+    console.error('[agenda] watch recusado', res.status, JSON.stringify(res.body));
+    return;
+  }
+  await admin
+    .from('calendar_google_accounts')
+    .update({
+      watch_channel_id: channelId,
+      watch_resource_id: res.body?.resourceId ?? null,
+      watch_expires_at: res.body?.expiration ? new Date(Number(res.body.expiration)).toISOString() : null,
+      watch_token: token,
+    } as any)
+    .eq('user_id', userId);
+}
+
+/** Cancela o aviso do Google (ao desconectar). */
+export async function stopGoogleWatch(userId: string) {
+  const { supabaseAdmin: admin } = await import('@/integrations/supabase/client.server');
+  const key = await getConnectionKeyForUser(userId, GOOGLE_CONNECTOR_ID);
+  const { data } = await admin.from('calendar_google_accounts').select('*').eq('user_id', userId).maybeSingle();
+  const acc = data as any;
+  if (key && acc?.watch_channel_id && acc?.watch_resource_id) {
+    await google(key, '/channels/stop', {
+      method: 'POST',
+      body: JSON.stringify({ id: acc.watch_channel_id, resourceId: acc.watch_resource_id }),
+    }).catch(() => undefined);
+  }
 }
