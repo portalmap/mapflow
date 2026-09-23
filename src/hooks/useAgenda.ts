@@ -120,6 +120,12 @@ export function useAgendaEvents(rangeStart: Date, rangeEnd: Date) {
   return useQuery({
     queryKey: [AGENDA_KEY, user?.id, startIso, endIso, connected],
     enabled: !!user?.id && !statusPending,
+    // Sempre relê o que está salvo: aba aberta há horas não fica com foto antiga.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    // Durante a troca de período/sincronização, mantém os dados já exibidos.
+    placeholderData: (prev) => prev,
     queryFn: async () => {
       let query = supabase
         .from('calendar_events')

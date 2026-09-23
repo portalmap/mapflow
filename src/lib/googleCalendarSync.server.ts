@@ -662,9 +662,6 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
   const recurrenceCache = new Map<string, string[] | null>(
     Object.entries(cursor.recurrence ?? {}),
   );
-  const saveRecurrence = () => {
-    cursor.recurrence = Object.fromEntries(recurrenceCache);
-  };
 
   /** Aplica uma página de eventos do Google em lote (poucas idas ao banco por página). */
   const applyPage = async (calId: string, items: GoogleEvent[]) => {
