@@ -256,6 +256,18 @@ function phoneEntryOf(ev: GoogleEvent): { phone: string | null; pin: string | nu
   return { phone: (entry.label || entry.uri || '').replace('tel:', '') || null, pin: entry.pin ?? null };
 }
 
+/**
+ * Código único do compromisso no Google (iCalUID). O mesmo compromisso mantém
+ * esse código em todas as agendas e cópias. Quando o Google não envia, deriva do
+ * id da ocorrência (`<mestre>_20260824T083000Z`).
+ */
+function icalUidOf(ev: GoogleEvent): string | null {
+  const uid = ev.iCalUID?.trim();
+  if (uid) return uid;
+  const base = ev.recurringEventId?.trim() || ev.id?.split('_')[0];
+  return base || null;
+}
+
 function fromGoogleEvent(
   ev: GoogleEvent,
   userId: string,
