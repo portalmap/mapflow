@@ -16,4 +16,4 @@
 - [x] Separar Templates estruturais de modelos exclusivos de automação
 - [x] Copiar as automações atuais para modelos independentes, separadas por tipo
 - [x] Validar criação, edição, duplicação, exclusão e aplicação em massa
-- [ ] Agenda: tela sempre atualizada, importação a partir do mês vigente (sem passado), limpeza segura
+- [x] Agenda: tela sempre atualizada, importação a partir do mês vigente (sem passado), limpeza segura
