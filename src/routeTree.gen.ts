@@ -35,6 +35,7 @@ import { Route as AuthenticatedListListIdRouteImport } from './routes/_authentic
 import { Route as AuthenticatedFolderFolderIdRouteImport } from './routes/_authenticated/folder.$folderId'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents.$id'
 import { Route as AuthenticatedDashboardsIdRouteImport } from './routes/_authenticated/dashboards.$id'
+import { Route as ApiPublicGoogleCalendarWebhookRouteImport } from './routes/api/public/google-calendar/webhook'
 
 const SignedOutRoute = SignedOutRouteImport.update({
   id: '/signed-out',
@@ -174,6 +175,12 @@ const AuthenticatedDashboardsIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedDashboardsRoute,
   } as any)
+const ApiPublicGoogleCalendarWebhookRoute =
+  ApiPublicGoogleCalendarWebhookRouteImport.update({
+    id: '/api/public/google-calendar/webhook',
+    path: '/api/public/google-calendar/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/dashboards/': typeof AuthenticatedDashboardsIndexRoute
   '/documents/': typeof AuthenticatedDocumentsIndexRoute
+  '/api/public/google-calendar/webhook': typeof ApiPublicGoogleCalendarWebhookRoute
 }
 export interface FileRoutesByTo {
   '/signed-out': typeof SignedOutRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/dashboards': typeof AuthenticatedDashboardsIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
+  '/api/public/google-calendar/webhook': typeof ApiPublicGoogleCalendarWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -255,6 +264,7 @@ export interface FileRoutesById {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/dashboards/': typeof AuthenticatedDashboardsIndexRoute
   '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
+  '/api/public/google-calendar/webhook': typeof ApiPublicGoogleCalendarWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/dashboards/'
     | '/documents/'
+    | '/api/public/google-calendar/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/signed-out'
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/dashboards'
     | '/documents'
+    | '/api/public/google-calendar/webhook'
   id:
     | '__root__'
     | '/_authenticated'
@@ -337,6 +349,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/_authenticated/dashboards/'
     | '/_authenticated/documents/'
+    | '/api/public/google-calendar/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -345,6 +358,7 @@ export interface RootRouteChildren {
   SsoCallbackRoute: typeof SsoCallbackRoute
   SsoLoginRoute: typeof SsoLoginRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
+  ApiPublicGoogleCalendarWebhookRoute: typeof ApiPublicGoogleCalendarWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -531,6 +545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardsIdRouteImport
       parentRoute: typeof AuthenticatedDashboardsRoute
     }
+    '/api/public/google-calendar/webhook': {
+      id: '/api/public/google-calendar/webhook'
+      path: '/api/public/google-calendar/webhook'
+      fullPath: '/api/public/google-calendar/webhook'
+      preLoaderRoute: typeof ApiPublicGoogleCalendarWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -615,6 +636,7 @@ const rootRouteChildren: RootRouteChildren = {
   SsoCallbackRoute: SsoCallbackRoute,
   SsoLoginRoute: SsoLoginRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
+  ApiPublicGoogleCalendarWebhookRoute: ApiPublicGoogleCalendarWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

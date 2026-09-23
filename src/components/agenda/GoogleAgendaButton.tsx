@@ -46,7 +46,9 @@ export function GoogleAgendaButton() {
     ? sync.progress && sync.progress.calendars > 1
       ? `Sincronizando ${sync.progress.calendar}/${sync.progress.calendars}`
       : 'Sincronizando'
-    : 'Atualizar';
+    : status?.lastSyncedAt
+      ? `Atualizado às ${new Date(status.lastSyncedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      : 'Atualizar';
 
   return (
     <div className="flex items-center gap-1">

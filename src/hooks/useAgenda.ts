@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { supabase } from '@/integrations/supabase/client';
@@ -116,6 +117,28 @@ export function useAgendaEvents(rangeStart: Date, rangeEnd: Date) {
   const connected = !!googleStatus?.connected;
   const startIso = rangeStart.toISOString();
   const endIso = rangeEnd.toISOString();
+  const queryClient = useQueryClient();
+
+  // Tempo real: quando o aviso do Google grava algo, a tela se atualiza sozinha.
+  useEffect(() => {
+    if (!user?.id) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const channel = supabase
+      .channel(`agenda-events-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'calendar_events', filter: `user_id=eq.${user.id}` },
+        () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => queryClient.invalidateQueries({ queryKey: [AGENDA_KEY] }), 800);
+        },
+      )
+      .subscribe();
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
 
   return useQuery({
     queryKey: [AGENDA_KEY, user?.id, startIso, endIso, connected],
