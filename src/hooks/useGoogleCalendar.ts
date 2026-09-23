@@ -217,7 +217,7 @@ export function useSyncGoogleCalendar() {
         let rounds = 1;
         while (result?.more && !result.error && rounds < MAX_ROUNDS) {
           setProgress(result.progress ?? null);
-          queryClient.invalidateQueries({ queryKey: ['agenda-events'] });
+          await queryClient.refetchQueries({ queryKey: ['agenda-events'], type: 'active' });
           result = await sync();
           rounds += 1;
         }
@@ -232,7 +232,7 @@ export function useSyncGoogleCalendar() {
       }
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['agenda-events'] });
+      queryClient.invalidateQueries({ queryKey: ['agenda-events'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['google-calendar-status'] });
       if (result?.error) toast.error('O Google recusou a sincronização. Tente reconectar.');
     },

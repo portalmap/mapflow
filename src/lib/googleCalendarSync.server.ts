@@ -388,6 +388,8 @@ interface SyncCursor {
   pageToken: string | null;
   windowFrom: string;
   windowTo: string;
+  /** Regras de repetição já buscadas (reaproveitadas entre rodadas). */
+  recurrence?: Record<string, string[] | null>;
 }
 
 function readCursor(raw: unknown): SyncCursor | null {
@@ -402,6 +404,7 @@ function readCursor(raw: unknown): SyncCursor | null {
     pageToken: typeof c.pageToken === 'string' ? c.pageToken : null,
     windowFrom: c.windowFrom,
     windowTo: c.windowTo,
+    recurrence: c.recurrence && typeof c.recurrence === 'object' ? c.recurrence : {},
   };
 }
 
@@ -618,7 +621,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         status: 'online',
         sync_token: syncTokens[calendarId] ?? null,
         sync_tokens: syncTokens,
-        sync_cursor: cursor ?? {},
+        sync_cursor: (cursor
+          ? { ...cursor, recurrence: Object.fromEntries(recurrenceCache) }
+          : {}) as any,
         last_synced_at: new Date().toISOString(),
         last_error: null,
       },
@@ -637,9 +642,10 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
   if (resumeCursor) {
     cursor = { ...resumeCursor, calendarIds: [calendarId], index: 0 };
   } else {
-    // Janela padrão da listagem completa: 30 dias atrás até 180 dias à frente.
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
+    // Janela da listagem completa: do 1º dia do mês vigente até 180 dias à frente.
+    // O passado não é importado.
+    const now = new Date();
+    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const to = new Date();
     to.setDate(to.getDate() + 180);
     cursor = {
@@ -648,12 +654,14 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       pageToken: null,
       windowFrom: from.toISOString(),
       windowTo: to.toISOString(),
+      recurrence: {},
     };
   }
 
-
-  /** RRULE por evento mestre, para não buscar a mesma série duas vezes. */
-  const recurrenceCache = new Map<string, string[] | null>();
+  /** RRULE por evento mestre, reaproveitado entre rodadas via cursor. */
+  const recurrenceCache = new Map<string, string[] | null>(
+    Object.entries(cursor.recurrence ?? {}),
+  );
 
   /** Aplica uma página de eventos do Google em lote (poucas idas ao banco por página). */
   const applyPage = async (calId: string, items: GoogleEvent[]) => {
