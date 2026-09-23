@@ -898,6 +898,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     let syncToken: string | null = cursor.pageToken ? null : (syncTokens[calId] ?? null);
     let nextSyncToken: string | null = null;
     let guard = 0;
+    /** Listagem completa iniciada e concluída nesta rodada (habilita a limpeza de sobras). */
+    const startedFromScratch = !syncToken && !cursor.pageToken;
+    let finishedAllPages = false;
 
     while (true) {
       if (outOfTime()) {
