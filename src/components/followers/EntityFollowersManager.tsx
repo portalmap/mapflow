@@ -11,6 +11,8 @@ import { useSpaceFollowers, useAddSpaceFollower, useRemoveSpaceFollower } from '
 import { useFolderFollowers, useAddFolderFollower, useRemoveFolderFollower } from '@/hooks/useFolderFollowers';
 import { useListFollowers, useAddListFollower, useRemoveListFollower } from '@/hooks/useListFollowers';
 import { useTaskFollowers, useAddTaskFollower, useRemoveTaskFollower } from '@/hooks/useTaskFollowers';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useSpace } from '@/hooks/useSpaces';
 
 type EntityType = 'space' | 'folder' | 'list' | 'task';
 
@@ -55,6 +57,10 @@ export const EntityFollowersManager = ({ entityType, entityId, workspaceId, comp
 
   const { data: followers, isLoading } = useFollowersForEntity(entityType, entityId);
   const { data: members, isLoading: loadingMembers } = useWorkspaceMembers(workspaceId);
+  const { data: userRole } = useUserRole();
+  const isAdmin = userRole?.isAdmin ?? false;
+  const { data: spaceData } = useSpace(entityType === 'space' ? entityId : undefined);
+  const accountUserId = (spaceData as any)?.account_user_id as string | undefined;
 
   const addSpace = useAddSpaceFollower();
   const removeSpace = useRemoveSpaceFollower();
@@ -129,6 +135,8 @@ export const EntityFollowersManager = ({ entityType, entityId, workspaceId, comp
           <div className="space-y-2">
             {followers.map((follower: any) => {
               const isInherited = entityType === 'task' && follower.source_type && follower.source_type !== 'manual';
+              const isAccount = entityType === 'space' && accountUserId === follower.user_id;
+              const canRemove = isAdmin && !isInherited && !isAccount;
               return (
                 <div
                   key={follower.id}
@@ -147,8 +155,13 @@ export const EntityFollowersManager = ({ entityType, entityId, workspaceId, comp
                         {sourceLabels[follower.source_type] || follower.source_type}
                       </Badge>
                     )}
+                    {isAccount && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                        Account do Space
+                      </Badge>
+                    )}
                   </div>
-                  {!isInherited && (
+                  {canRemove && (
                     <Button
                       variant="ghost"
                       size="icon"
