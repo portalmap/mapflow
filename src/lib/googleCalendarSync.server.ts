@@ -946,14 +946,34 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       nextSyncToken = res.body?.nextSyncToken ?? nextSyncToken;
       guard += 1;
 
-      if (!nextPage || guard >= 40) break;
+      if (!nextPage || guard >= 40) {
+        finishedAllPages = !nextPage;
+        break;
+      }
       cursor.pageToken = nextPage;
       // Salva o ponto entre páginas: se o tempo acabar, a próxima rodada continua daqui.
       await persistAccount(cursor);
     }
 
+    // Limpeza de sobras: numa listagem completa concluída, o que o Google não
+    // devolveu mais nessa janela some daqui (nada é apagado no Google).
+    if (startedFromScratch && finishedAllPages && !syncToken) {
+      const { error, count } = await admin
+        .from('calendar_events')
+        .delete({ count: 'exact' })
+        .eq('user_id', userId)
+        .eq('source', 'google')
+        .eq('google_calendar_id', calId)
+        .neq('item_type', 'task')
+        .gte('starts_at', cursor.windowFrom)
+        .lte('starts_at', cursor.windowTo)
+        .lt('last_synced_at', syncRunAt);
+      if (!error) removed += count ?? 0;
+    }
+
     if (nextSyncToken) syncTokens[calId] = nextSyncToken;
   }
+
 
   if (stoppedForTime) {
     await persistAccount(cursor);
