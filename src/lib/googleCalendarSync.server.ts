@@ -20,6 +20,7 @@ type ItemType = 'event' | 'task' | 'out_of_office' | 'focus_time';
 
 interface GoogleEvent {
   id: string;
+  iCalUID?: string;
   status?: string;
   etag?: string;
   eventType?: string;
@@ -255,6 +256,18 @@ function phoneEntryOf(ev: GoogleEvent): { phone: string | null; pin: string | nu
   return { phone: (entry.label || entry.uri || '').replace('tel:', '') || null, pin: entry.pin ?? null };
 }
 
+/**
+ * Código único do compromisso no Google (iCalUID). O mesmo compromisso mantém
+ * esse código em todas as agendas e cópias. Quando o Google não envia, deriva do
+ * id da ocorrência (`<mestre>_20260824T083000Z`).
+ */
+function icalUidOf(ev: GoogleEvent): string | null {
+  const uid = ev.iCalUID?.trim();
+  if (uid) return uid;
+  const base = ev.recurringEventId?.trim() || ev.id?.split('_')[0];
+  return base || null;
+}
+
 function fromGoogleEvent(
   ev: GoogleEvent,
   userId: string,
@@ -290,6 +303,9 @@ function fromGoogleEvent(
       ev.outOfOfficeProperties?.autoDeclineMode === 'declineOnlyNewConflictingInvitations',
     response_status: self?.responseStatus ?? null,
     google_event_id: ev.id,
+    // Código único do compromisso: igual em todas as agendas e cópias do mesmo
+    // compromisso. É a chave que evita duplicatas quando o Google muda o id.
+    google_ical_uid: icalUidOf(ev),
     google_calendar_id: calendarId,
     google_etag: ev.etag ?? null,
     google_html_link: ev.htmlLink ?? null,
@@ -587,6 +603,8 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
   if (account?.sync_token && !syncTokens[calendarId]) syncTokens[calendarId] = account.sync_token;
 
   const startedAt = Date.now();
+  /** Marca desta rodada: usada para reconhecer sobras de sincronizações antigas. */
+  const syncRunAt = new Date().toISOString();
   const MAX_SYNC_MS = 20_000;
   const outOfTime = () => Date.now() - startedAt > MAX_SYNC_MS;
 
@@ -654,24 +672,50 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     }
     if (!live.length) return;
 
-    const { data: existingRows } = await admin
-      .from('calendar_events')
-      .select('id, google_event_id, google_etag, organizer_email')
-      .eq('user_id', userId)
-      .in(
-        'google_event_id',
-        live.map((ev) => ev.id),
-      );
-    const existingByGoogleId = new Map<
-      string,
-      { id: string; google_etag: string | null; organizer_email: string | null }
-    >();
-    for (const r of existingRows ?? []) {
+    type ExistingRow = {
+      id: string;
+      google_event_id: string | null;
+      google_ical_uid: string | null;
+      starts_at: string;
+      google_etag: string | null;
+      organizer_email: string | null;
+    };
+    const SELECT_COLS = 'id, google_event_id, google_ical_uid, starts_at, google_etag, organizer_email';
+
+    const pageUids = Array.from(
+      new Set(live.map((ev) => icalUidOf(ev)).filter((u): u is string => !!u)),
+    );
+    const [byIdRes, byUidRes] = await Promise.all([
+      admin
+        .from('calendar_events')
+        .select(SELECT_COLS)
+        .eq('user_id', userId)
+        .in(
+          'google_event_id',
+          live.map((ev) => ev.id),
+        ),
+      pageUids.length
+        ? admin
+            .from('calendar_events')
+            .select(SELECT_COLS)
+            .eq('user_id', userId)
+            .in('google_ical_uid', pageUids)
+        : Promise.resolve({ data: [] as ExistingRow[] }),
+    ]);
+
+    const existingByGoogleId = new Map<string, ExistingRow>();
+    // Mesmo compromisso reconhecido pelo código único + horário de início,
+    // mesmo que o id da ocorrência tenha mudado no Google.
+    const existingByUid = new Map<string, ExistingRow>();
+    for (const r of [...((byIdRes as any).data ?? []), ...((byUidRes as any).data ?? [])] as ExistingRow[]) {
       if (r.google_event_id) existingByGoogleId.set(r.google_event_id, r);
+      if (r.google_ical_uid) existingByUid.set(`${r.google_ical_uid}|${r.starts_at}`, r);
     }
 
     const localIdByGoogleId = new Map<string, string>();
     const toInsert: any[] = [];
+    /** Registros confirmados nesta rodada (usado na limpeza de sobras). */
+    const touchedIds: string[] = [];
 
     // Regra de repetição: vem do evento "mestre" da série (uma ocorrência isolada
     // não traz o RRULE). Buscamos cada mestre uma vez por sincronização.
@@ -690,14 +734,22 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
         ? recurrenceCache.get(ev.recurringEventId) ?? null
         : ev.recurrence ?? null;
       const row = fromGoogleEvent(ev, userId, calId, recurrence);
-      const existing = existingByGoogleId.get(ev.id);
+      const existing =
+        existingByGoogleId.get(ev.id) ??
+        (row.google_ical_uid
+          ? existingByUid.get(`${row.google_ical_uid}|${row.starts_at}`)
+          : undefined);
       if (existing) {
         localIdByGoogleId.set(ev.id, existing.id);
+        touchedIds.push(existing.id);
         // Rede de segurança: eventos importados antes do espelhamento de
         // organizador/convidados não têm organizer_email — reaplica os dados
         // mesmo que o Google não tenha alterado nada (etag igual).
         const importedBeforeMetadata = !existing.organizer_email && !!row.organizer_email;
-        if (existing.google_etag === row.google_etag && !importedBeforeMetadata) continue;
+        const sameGoogleId = existing.google_event_id === row.google_event_id;
+        if (existing.google_etag === row.google_etag && sameGoogleId && !importedBeforeMetadata) {
+          continue;
+        }
         await admin.from('calendar_events').update(row).eq('id', existing.id);
         pulled += 1;
       } else {
@@ -720,16 +772,28 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
             .maybeSingle();
           if (one?.google_event_id) {
             localIdByGoogleId.set(one.google_event_id, one.id);
+            touchedIds.push(one.id);
             pulled += 1;
           }
         }
       } else {
         for (const r of inserted ?? []) {
           if (r.google_event_id) localIdByGoogleId.set(r.google_event_id, r.id);
+          touchedIds.push(r.id);
         }
         pulled += inserted?.length ?? 0;
       }
     }
+
+    // Marca como confirmados nesta rodada (inclusive os que não mudaram), para
+    // que a limpeza de sobras só remova o que o Google não devolve mais.
+    for (let i = 0; i < touchedIds.length; i += 200) {
+      await admin
+        .from('calendar_events')
+        .update({ last_synced_at: syncRunAt })
+        .in('id', touchedIds.slice(i, i + 200));
+    }
+
 
     // Espelha a lista completa de convidados do Google (nome, organizador,
     // opcional e resposta), para que a Agenda mostre exatamente o que o Google mostra.
@@ -834,6 +898,9 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
     let syncToken: string | null = cursor.pageToken ? null : (syncTokens[calId] ?? null);
     let nextSyncToken: string | null = null;
     let guard = 0;
+    /** Listagem completa iniciada e concluída nesta rodada (habilita a limpeza de sobras). */
+    const startedFromScratch = !syncToken && !cursor.pageToken;
+    let finishedAllPages = false;
 
     while (true) {
       if (outOfTime()) {
@@ -879,14 +946,34 @@ export async function syncUserGoogleCalendar(userId: string): Promise<SyncResult
       nextSyncToken = res.body?.nextSyncToken ?? nextSyncToken;
       guard += 1;
 
-      if (!nextPage || guard >= 40) break;
+      if (!nextPage || guard >= 40) {
+        finishedAllPages = !nextPage;
+        break;
+      }
       cursor.pageToken = nextPage;
       // Salva o ponto entre páginas: se o tempo acabar, a próxima rodada continua daqui.
       await persistAccount(cursor);
     }
 
+    // Limpeza de sobras: numa listagem completa concluída, o que o Google não
+    // devolveu mais nessa janela some daqui (nada é apagado no Google).
+    if (startedFromScratch && finishedAllPages && !syncToken) {
+      const { error, count } = await admin
+        .from('calendar_events')
+        .delete({ count: 'exact' })
+        .eq('user_id', userId)
+        .eq('source', 'google')
+        .eq('google_calendar_id', calId)
+        .neq('item_type', 'task')
+        .gte('starts_at', cursor.windowFrom)
+        .lte('starts_at', cursor.windowTo)
+        .lt('last_synced_at', syncRunAt);
+      if (!error) removed += count ?? 0;
+    }
+
     if (nextSyncToken) syncTokens[calId] = nextSyncToken;
   }
+
 
   if (stoppedForTime) {
     await persistAccount(cursor);
