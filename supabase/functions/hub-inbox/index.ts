@@ -546,7 +546,7 @@ async function handleCalendarioPublicar(
       if (existente) {
         resultados.push({
           external_post_ref: post.external_post_ref,
-          task_id: existente.id,
+          id: existente.id,
           status: "ja_existia",
         });
         continue;
@@ -557,7 +557,7 @@ async function handleCalendarioPublicar(
       if (!statusId) {
         resultados.push({
           external_post_ref: post.external_post_ref,
-          task_id: null,
+          id: null,
           status: "erro",
           error: "status_do_canal_nao_encontrado",
           canal: post.social_channel ?? null,
@@ -632,7 +632,7 @@ async function handleCalendarioPublicar(
 
       resultados.push({
         external_post_ref: post.external_post_ref,
-        task_id: taskId,
+        id: taskId,
         status: criada ? "criada" : "ja_existia",
       });
     }
