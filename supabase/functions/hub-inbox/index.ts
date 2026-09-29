@@ -632,7 +632,7 @@ async function handleCalendarioPublicar(
 
       resultados.push({
         external_post_ref: post.external_post_ref,
-        task_id: taskId,
+        id: taskId,
         status: criada ? "criada" : "ja_existia",
       });
     }
