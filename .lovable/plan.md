@@ -1,17 +1,17 @@
-# Aceitar "whatsapp_canal" e outros canais do Social Flow no calendario.publicar
+# calendario.publicar: devolver o id da tarefa em `id` (não mais em `task_id`)
 
-## Diagnostico (confirmado)
-- Hoje (29/09), entre 18:05 e 18:08 (Brasilia), chegaram 4 envios de `calendario.publicar` do cliente Accerth, 8 posts cada (mensagens f3757e25, 273f1758, 177c8f81, 520a58f3).
-- Em todos, os 8 posts voltaram com `status: "erro"`, `error: "status_do_canal_nao_encontrado"`, `task_id: null`. Nenhuma tarefa foi criada (0 tarefas com essas referencias).
-- Os `external_post_ref` devolvidos batem 8 de 8 com os `external_post_ref` recebidos em cada envio.
-- Causa: o canal enviado e `whatsapp_canal`, mas o status da lista se chama "Canal Whatsapp". A comparacao atual so ignora pontuacao/maiusculas, entao `whatsapp canal` != `canal whatsapp`.
-- O campo e `external_post_ref` (o `post_ref` recebido), nao `post_ref`.
+## Diagnóstico (confirmado)
+- Em `supabase/functions/hub-inbox/index.ts`, a resposta de `calendario.publicar` monta `resultados` em 3 pontos, e todos usam o campo `task_id`:
+  - linha ~549: tarefa já existia → `task_id: existente.id`
+  - linha ~560: erro (status do canal não encontrado) → `task_id: null`
+  - linha ~635: tarefa criada → `task_id: taskId`
+- O restante do Relay já usa `id` como nome do campo do id da tarefa (padrão do MAP Flow).
 
-## O que sera feito (somente modulo hub-inbox)
-1. Em `supabase/functions/hub-inbox/index.ts`, `resolverStatusDoCanal`: adicionar tabela de apelidos de canal -> nome do status (ex.: `whatsapp_canal` -> "Canal Whatsapp", `whatsapp_comunidade` -> "Comunidade Whatsapp", `twitter`/`x` -> "X (Twitter)", `tiktok`, `linkedin`, `instagram`, `facebook`, `blog`), com fallback para a comparacao atual e para comparacao ignorando a ordem das palavras.
-2. Manter a resposta de erro atual (com `status_disponiveis`) quando nenhum apelido servir.
-3. Fazer deploy da funcao `hub-inbox`.
-4. Reenvio: como nenhuma tarefa foi criada, o Social Flow pode reenviar os mesmos posts; a idempotencia por `external_post_ref` evita duplicar.
+## O que será feito (somente módulo hub-inbox)
+1. Nos 3 pontos acima, renomear o campo `task_id` → `id` dentro de cada item de `resultados` (erro incluído: `id: null`).
+2. Não alterar `external_post_ref`, `status`, `error`, `canal`, `status_disponiveis` nem nenhum outro campo da resposta raiz (`cliente`, `workspace_id`, `list_id`, `list_name`).
+3. Observação: `task_id` usado internamente (inserção de anexos em `task_attachments`, marcação de origem) permanece igual — é coluna do banco, não campo de resposta.
+4. Fazer deploy da função `hub-inbox`.
 
 ## Pergunta em aberto
-Confirmar os nomes exatos dos canais que o Social Flow envia (alem de `whatsapp_canal`) para fechar a tabela de apelidos.
+- O plano anterior (apelidos de canal: `whatsapp_canal` → "Canal Whatsapp") ainda não está no código. Aprovar este plano aplica só a mudança de `task_id` → `id`; se quiser, incluo os apelidos de canal no mesmo deploy — basta avisar.
