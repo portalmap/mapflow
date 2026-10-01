@@ -73,6 +73,7 @@ export function AutomationCard({ automation, spaces = [], lists = [], folders = 
   
   // Build full trigger labels including OR triggers
   const orTriggers = (actionConfig?.or_triggers as string[] | undefined) || [];
+  const triggerLogics = (actionConfig?.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
   const allTriggerLabels = [trigger?.label || automation.trigger];
   for (const orId of orTriggers) {
     const orTrigger = getTriggerById(orId);
@@ -124,7 +125,7 @@ export function AutomationCard({ automation, spaces = [], lists = [], folders = 
                   <span key={idx} className="flex items-center gap-1.5">
                     {idx > 0 && (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 font-semibold text-primary border-primary/30">
-                        OU
+                        {triggerLogics[idx - 1] === 'AND' ? 'E' : 'OU'}
                       </Badge>
                     )}
                     <span className="font-medium text-foreground/80">{label}</span>
