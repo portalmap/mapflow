@@ -1,6 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import { QueryClient } from '@tanstack/react-query';
 import { applyAutomationsToTask } from './useApplyAutomations';
+import {
+  isAutomationTriggerGroupSatisfied,
+  PERSISTENT_AUTOMATION_TRIGGERS,
+} from '@/components/automations/advanced/automationTriggerLogic';
 
 interface StatusChangeInfo {
   taskId: string;
@@ -76,42 +80,18 @@ const getRecentTaskEvents = (taskId: string): string[] => {
   return Array.from(new Set(list.map(e => e.event)));
 };
 
-/**
- * Verifica a lógica E/OU entre gatilhos.
- * action_config.trigger_logics guarda o conector entre o gatilho i e i+1
- * (na ordem [trigger, ...or_triggers]). Ausente = tudo OU (comportamento antigo).
- */
-const triggerLogicSatisfied = (
-  config: Record<string, any> | null,
-  primaryTrigger: string,
-  firedEvent: string,
-  occurredEvents: string[]
-): boolean => {
-  const triggers = [primaryTrigger, ...((config?.or_triggers as string[] | undefined) || [])];
-  if (triggers.length <= 1) return true;
+const getPersistentTaskEvents = async (taskId: string): Promise<string[]> => {
+  const { data: task, error } = await supabase
+    .from('tasks')
+    .select('id, created_at')
+    .eq('id', taskId)
+    .maybeSingle();
 
-  const logics = (config?.trigger_logics as ('AND' | 'OR')[] | undefined) || [];
-  if (logics.length === 0 || logics.every(l => l !== 'AND')) return true;
+  if (error) throw error;
+  if (!task?.created_at) return [];
 
-  // Quebra os gatilhos em grupos: dentro do grupo = E, entre grupos = OU
-  const groups: string[][] = [];
-  let current: string[] = [triggers[0]];
-  for (let i = 1; i < triggers.length; i++) {
-    if (logics[i - 1] === 'AND') {
-      current.push(triggers[i]);
-    } else {
-      groups.push(current);
-      current = [triggers[i]];
-    }
-  }
-  groups.push(current);
-
-  const groupsWithEvent = groups.filter(g => g.includes(firedEvent));
-  if (groupsWithEvent.length === 0) return false;
-
-  // Basta que um dos grupos que contém o evento disparado esteja completo
-  return groupsWithEvent.some(group =>
-    group.every(t => t === firedEvent || occurredEvents.includes(t))
+  return Array.from(PERSISTENT_AUTOMATION_TRIGGERS).filter(
+    (trigger) => trigger === 'on_task_created',
   );
 };
 
@@ -753,14 +733,23 @@ export const executeStatusChangeAutomations = async (
 
     // Filter to only automations whose trigger or or_triggers include 'on_status_changed'
     recordTaskEvent(info.taskId, 'on_status_changed');
-    const occurredEvents = getRecentTaskEvents(info.taskId);
+    const persistentEvents = await getPersistentTaskEvents(info.taskId);
+    const occurredEvents = Array.from(new Set([
+      ...getRecentTaskEvents(info.taskId),
+      ...persistentEvents,
+    ]));
 
     const statusAutomations = automations.filter(a => {
       const config = a.action_config as Record<string, any> | null;
       const orTriggers = (config?.or_triggers as string[] | undefined) || [];
       const matches = a.trigger === 'on_status_changed' || orTriggers.includes('on_status_changed');
       if (!matches) return false;
-      return triggerLogicSatisfied(config, a.trigger, 'on_status_changed', occurredEvents);
+      return isAutomationTriggerGroupSatisfied(
+        config,
+        a.trigger,
+        'on_status_changed',
+        occurredEvents,
+      );
     });
 
     // 4. Filter automations by matching scopes
@@ -837,13 +826,6 @@ export const executeStatusChangeAutomations = async (
           continue;
         }
 
-        // Record execution BEFORE running actions to prevent concurrent duplicates
-        await supabase.from('automation_executions').insert({
-          automation_id: automation.id,
-          task_id: info.taskId,
-          status_id: info.newStatusId,
-        });
-
         const automationName = automation.description || `Automação ${automation.id.slice(0, 8)}`;
         
         // Check if automation has multiple actions
@@ -860,6 +842,15 @@ export const executeStatusChangeAutomations = async (
           // Execute single action (legacy support)
           await executeAction(automation.action_type, info, actionConfig, automationName);
         }
+
+        const { error: executionError } = await supabase
+          .from('automation_executions')
+          .insert({
+            automation_id: automation.id,
+            task_id: info.taskId,
+            status_id: info.newStatusId,
+          });
+        if (executionError) throw executionError;
 
         // Apply destination list automations AFTER all actions complete
         if (info.listId !== originalListId) {
@@ -1338,12 +1329,21 @@ const executeAddTag = async (
 
   if (!resolvedTagId) return;
 
-  await supabase
+  const { data: existingRelation, error: lookupError } = await supabase
     .from('task_tag_relations')
-    .upsert(
-      { task_id: info.taskId, tag_id: resolvedTagId },
-      { onConflict: 'task_id,tag_id' }
-    );
+    .select('id')
+    .eq('task_id', info.taskId)
+    .eq('tag_id', resolvedTagId)
+    .maybeSingle();
+
+  if (lookupError) throw lookupError;
+  if (existingRelation) return;
+
+  const { error: insertError } = await supabase
+    .from('task_tag_relations')
+    .insert({ task_id: info.taskId, tag_id: resolvedTagId });
+
+  if (insertError) throw insertError;
 
   console.log(`Tag added to task ${info.taskId} (tag_id: ${resolvedTagId})`);
 };
@@ -1737,7 +1737,7 @@ export const executeTagAutomations = async (
       const orTriggers = (config?.or_triggers as string[] | undefined) || [];
       const matches = a.trigger === event || orTriggers.includes(event);
       if (!matches) return false;
-      return triggerLogicSatisfied(config, a.trigger, event, occurredEvents);
+      return isAutomationTriggerGroupSatisfied(config, a.trigger, event, occurredEvents);
     });
 
     // 6. Filter by scope
