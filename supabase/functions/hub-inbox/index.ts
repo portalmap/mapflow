@@ -9,8 +9,18 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const HUB_INBOX_TOKEN = Deno.env.get("HUB_INBOX_TOKEN") ?? "";
 
+// Lista única de origens permitidas (CORS) — manter igual em sso-exchange,
+// session-guard, report-refresh-reuse e hub-inbox.
+// Domínios extras: secret ALLOWED_ORIGINS (separados por vírgula).
+const FIXED_ALLOWED_HOSTS = new Set([
+  "flow.assessoriamap.com.br",
+  "mapflow.lovable.app",
+  "localhost",
+  "127.0.0.1",
+]);
+
 function isAllowedOrigin(origin: string | null): boolean {
-  if (!origin) return true; // server-to-server
+  if (!origin) return true; // servidor-servidor
   let url: URL;
   try {
     url = new URL(origin);
@@ -18,10 +28,18 @@ function isAllowedOrigin(origin: string | null): boolean {
     return false;
   }
   const h = url.hostname;
-  if (h === "localhost" || h === "127.0.0.1") return true;
+  if (FIXED_ALLOWED_HOSTS.has(h)) return true;
   if (/\.lovable\.app$/.test(h)) return true;
   if (/\.lovableproject\.com$/.test(h)) return true;
-  return false;
+  const extra = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  return extra.some((o) => {
+    try {
+      return new URL(o.includes("://") ? o : `https://${o}`).hostname === h;
+    } catch {
+      return false;
+    }
+  });
 }
 
 function corsHeaders(origin: string | null): HeadersInit {
