@@ -69,7 +69,8 @@ serve(async (req) => {
       .single();
 
     // URL do convite
-    const inviteUrl = `${Deno.env.get('SUPABASE_URL')?.replace('https://', 'https://app.')}/accept-invite/${invitation.token}`;
+    const appUrl = (Deno.env.get('PUBLIC_APP_URL') ?? 'https://flow.assessoriamap.com.br').replace(/\/+$/, '');
+    const inviteUrl = `${appUrl}/accept-invite/${invitation.token}`;
 
     console.log('URL do convite gerado:', inviteUrl);
 

@@ -18,3 +18,5 @@
 - [x] Validar criação, edição, duplicação, exclusão e aplicação em massa
 - [x] Agenda: tela sempre atualizada, importação a partir do mês vigente (sem passado), limpeza segura
 - [x] Agenda: sincronização incremental + aviso do Google em tempo real (renovação diária por rotina agendada: pendente)
+- [x] Migração de domínios: CORS único, Hub novo, Realtime do Hub, webhook Google e convite via PUBLIC_APP_URL
+- [ ] Atualizar secrets HUB_BASE_URL, HUB_SSO_REDEEM_URL, HUB_RELAY_URL (aguardando usuário)
