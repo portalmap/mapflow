@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AddWorkspaceMemberDialog } from "./AddWorkspaceMemberDialog";
 
 type WorkspaceRole = "owner" | "admin" | "member" | "limited_member" | "guest";
 
@@ -47,6 +48,15 @@ export function WorkspaceMembers() {
   const queryClient = useQueryClient();
 
   const currentWorkspace = workspaces?.[0];
+
+  const { data: isGlobalOwner } = useQuery({
+    queryKey: ['is-global-owner', currentUser?.id],
+    enabled: !!currentUser,
+    queryFn: async () => {
+      const { data } = await supabase.rpc('is_global_owner', { _user_id: currentUser!.id });
+      return !!data;
+    },
+  });
 
   const { data: members, isLoading } = useQuery({
     queryKey: ['workspace-members', currentWorkspace?.id],
@@ -121,15 +131,18 @@ export function WorkspaceMembers() {
   }
 
   const currentUserMember = members?.find(m => m.user_id === currentUser?.id);
-  const isAdmin = currentUserMember?.role === 'admin';
+  const isAdmin = currentUserMember?.role === 'admin' || isGlobalOwner === true;
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Membros do Workspace</CardTitle>
-        <CardDescription>
-          Gerencie os membros e suas permissões. Use a aba "Convites" para adicionar novos membros.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1.5">
+          <CardTitle>Membros do Workspace</CardTitle>
+          <CardDescription>
+            Gerencie os membros e suas permissões. Quem tiver o acesso liberado começa a usar na hora.
+          </CardDescription>
+        </div>
+        {isAdmin && <AddWorkspaceMemberDialog workspaceId={currentWorkspace.id} />}
       </CardHeader>
       <CardContent>
         {isLoading ? (
