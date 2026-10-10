@@ -41,3 +41,20 @@
 
 ## Ponto a confirmar
 O payload do `usuario.atualizado` deve trazer o `email` do usuário. Se vier outro identificador (ex.: id do Hub), será usado `profiles.hub_user_id`.
+
+---
+
+# Remover o fluxo de convites
+
+## Situação atual
+- Não existe mais botão, menu ou tela de aceite de convite no sistema.
+- Restos: as funções de backend `send-invitation-email` (gera o link `.../accept-invite/...`) e `add-user-with-invite` (cria usuário e manda e-mail), que nenhuma tela chama; a tabela `user_invitations` e a rotina `expire_old_invitations`; e o texto da tela de Membros: "Use a aba Convites para adicionar novos membros" (essa aba não existe).
+- Não existe hoje uma forma de adicionar alguém a um workspace pela tela; dá só para mudar o papel ou remover.
+- Os "convidados" da Agenda são os participantes dos compromissos do Google e não fazem parte disso. Eles não serão tocados.
+
+## O que será feito
+1. Excluir do backend as funções `send-invitation-email` e `add-user-with-invite` e retirá-las da configuração.
+2. Remover do banco a tabela `user_invitations` e a rotina `expire_old_invitations`. Antes, confirmar que nada mais depende delas.
+3. Trocar o texto da tela de Membros e incluir o botão **"Liberar acesso"**. O administrador escolhe uma pessoa que já entrou pelo Hub, escolhe o papel e confirma. A pessoa entra direto no workspace, sem e-mail e sem link.
+4. Só administradores do workspace e proprietários globais podem liberar acesso. A regra fica garantida no banco, não só na tela.
+5. Atualizar `docs/INTEGRATIONS.md` e anotar a tarefa na lista de tarefas.
