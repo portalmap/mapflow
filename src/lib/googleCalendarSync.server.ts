@@ -1151,7 +1151,9 @@ export async function pushRsvpToGoogle(
 
 // ---------- Avisos do Google (push notifications) ----------
 
-export const GOOGLE_WEBHOOK_URL = 'https://mapflow.lovable.app/api/public/google-calendar/webhook';
+const DEFAULT_PUBLIC_APP_URL = 'https://flow.assessoriamap.com.br';
+export const getGoogleWebhookUrl = () =>
+  `${(process.env.PUBLIC_APP_URL || DEFAULT_PUBLIC_APP_URL).replace(/\/+$/, '')}/api/public/google-calendar/webhook`;
 
 /** Registra (ou renova, faltando menos de 2 dias) o aviso do Google para a agenda principal. */
 export async function ensureGoogleWatch(userId: string, connectionAPIKey?: string | null) {
@@ -1180,7 +1182,7 @@ export async function ensureGoogleWatch(userId: string, connectionAPIKey?: strin
   const calendarId = acc.calendar_id || 'primary';
   const res = await google(key, `/calendars/${encodeURIComponent(calendarId)}/events/watch`, {
     method: 'POST',
-    body: JSON.stringify({ id: channelId, type: 'web_hook', address: GOOGLE_WEBHOOK_URL, token }),
+    body: JSON.stringify({ id: channelId, type: 'web_hook', address: getGoogleWebhookUrl(), token }),
   });
   if (!res.ok) {
     console.error('[agenda] watch recusado', res.status, JSON.stringify(res.body));
