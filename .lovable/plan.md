@@ -26,19 +26,19 @@
 - Ao deslogar, o sistema precisa mandar a pessoa para o login do Hub.
 - Ainda não há atualização de nome/foto/papel em tempo real (é opcional).
 
-## 2. O que vou fazer depois que você aprovar
+## 2. O que vou fazer depois que você aprovar (explicado de forma simples)
 
-a) **Verificação no servidor:** enviar `app_slug` = "mapflow" e o e-mail normalizado, com limite fixo de 3 s. Erro, excesso de chamadas (429) ou demora nunca deslogam. Se o próprio sistema tiver marcado o acesso como desativado (item d), a verificação desloga.
+Pense no Hub como a "portaria" e no MAP Flow como uma "sala". Quando a portaria cancela o crachá de alguém, a sala precisa expulsar essa pessoa. São três formas de ela ficar sabendo:
 
-b) **No navegador:** manter a verificação ao abrir e a cada 30 min. Se a resposta for "deslogar", encerrar a sessão e ir para o login do Hub.
+1. **Consulta periódica:** ao abrir o sistema e a cada 30 minutos, o servidor do MAP Flow pergunta ao Hub se o crachá da pessoa ainda vale. Se o Hub responder que foi cancelado, a pessoa sai e volta para a tela de login do Hub. Se o Hub não responder em 3 segundos ou der erro, ninguém é expulso por engano.
+2. **Aviso imediato:** o Hub "grita" quando cancela alguém. O MAP Flow escuta e, se for a pessoa que está usando o sistema, desconecta na hora.
+3. **Recado na caixa de entrada:** quando o Hub mandar "acesso desativado" para alguém, o MAP Flow anota e desconecta essa pessoa. Se depois mandar "acesso ativo" de novo, a anotação é apagada e ela pode entrar normalmente.
 
-c) **Tempo real:** deslogar na hora só se o aviso for desta pessoa, valer para este sistema (sem nome de sistema ou com "mapflow") e for posterior ao login. Opcional: ouvir "user-updates" e recarregar nome, foto e papel.
+**Sobre o nome "mapflow":** não há problema, com um cuidado. O login hoje se identifica no Hub como "map-flow", com hífen. Se eu trocar esse nome no login, ele para de funcionar. Por isso, vou usar **"mapflow" somente na consulta e no aviso de revogação**. O login continua com "map-flow" e nada muda nele. O Hub precisa reconhecer "mapflow" nesse ponto, como você definiu.
 
-d) **Caixa de entrada:** novo tratamento isolado de "usuario.atualizado" (origem "hub"). Com `acesso_ativo=false`, registrar a desativação com data/hora; a verificação e o tempo real derrubam a sessão. Com `acesso_ativo=true`, retirar o bloqueio. Um novo login bem-sucedido também retira o bloqueio.
+**Opcional:** atualizar nome, foto e papel na hora em que forem alterados no Hub.
 
-e) **Domínios antigos:** continuam funcionando. Vou pedir para você conferir ou atualizar os secrets `APP_SLUG` (= mapflow), `HUB_BASE_URL` e, se houver outro domínio, `ALLOWED_ORIGINS`.
-
-Tudo isso fica no módulo de sessão/SSO. O login atual e as outras telas não mudam.
+Os domínios antigos continuam funcionando. Tudo fica no módulo de sessão/login, sem mexer nas outras telas. Não será preciso criar novos secrets.
 
 ## Detalhes técnicos
 - `supabase/functions/session-guard`: `AbortController` de 3 s em `postHub`; `email.trim().toLowerCase()`; ler `session_context.access_revoked_at` e retornar `logout/access_disabled` se for maior que `login_at`.
