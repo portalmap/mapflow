@@ -3695,53 +3695,6 @@ export type Database = {
           },
         ]
       }
-      user_invitations: {
-        Row: {
-          accepted_at: string | null
-          created_at: string
-          email: string
-          expires_at: string
-          id: string
-          invited_by_user_id: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          status: string
-          token: string
-          workspace_id: string
-        }
-        Insert: {
-          accepted_at?: string | null
-          created_at?: string
-          email: string
-          expires_at?: string
-          id?: string
-          invited_by_user_id: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          status?: string
-          token?: string
-          workspace_id: string
-        }
-        Update: {
-          accepted_at?: string | null
-          created_at?: string
-          email?: string
-          expires_at?: string
-          id?: string
-          invited_by_user_id?: string
-          role?: Database["public"]["Enums"]["workspace_role"]
-          status?: string
-          token?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_invitations_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -3874,7 +3827,6 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      expire_old_invitations: { Args: never; Returns: undefined }
       get_account_productivity_report: {
         Args: {
           p_account_user_id?: string
@@ -4051,6 +4003,14 @@ export type Database = {
       is_workspace_admin: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
+      }
+      list_users_available_for_workspace: {
+        Args: { _workspace_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+        }[]
       }
       mark_notifications_read_for_reference: {
         Args: {

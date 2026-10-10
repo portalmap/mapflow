@@ -170,8 +170,7 @@ const { data: emailData, error: emailError } = await supabase.functions.invoke(
 Localizadas em `supabase/functions/`:
 
 - `get-user-emails` — lista emails via `auth.admin.listUsers`.
-- `add-user-with-invite` — cria usuário e envia convite.
-- `send-invitation-email` — envia convite via Resend.
+- (removido) convites por e-mail — o acesso é liberado direto na tela de Membros do workspace.
 - `reset-user-password` — reseta senha.
 - `update-user-email` — atualiza email de usuário.
 - `migrate-helper` — utilitários de migração.

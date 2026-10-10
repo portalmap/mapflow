@@ -20,3 +20,5 @@
 - [x] Agenda: sincronização incremental + aviso do Google em tempo real (renovação diária por rotina agendada: pendente)
 - [x] Migração de domínios: CORS único, Hub novo, Realtime do Hub, webhook Google e convite via PUBLIC_APP_URL
 - [x] Atualizar secrets HUB_BASE_URL, HUB_SSO_REDEEM_URL, HUB_RELAY_URL
+- [x] Remover fluxo de convites; liberar acesso direto na tela de Membros
+- [ ] Apagar as funções antigas de convite do servidor (aguardando publicação)
